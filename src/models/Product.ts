@@ -5,7 +5,7 @@ export class Product {
   technicalArticleNumber: string;
   seoBrand?: string;
   name: string;
-  LongName?: string;
+  longName?: string;
   content?: string;
   price?: Price;
   topCategoryName: string;

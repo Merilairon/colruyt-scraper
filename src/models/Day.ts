@@ -4,15 +4,28 @@ import { Promotion } from "./Promotion";
 import { sequelize } from "../data";
 
 export class Day extends Model {
-  date: Date;
-  products: Product[];
-  promotions: Promotion[];
+  declare date: Date;
+  declare products: Product[];
+  declare promotions: Promotion[];
 }
 Day.init(
   {
-    date: DataTypes.DATE,
+    date: DataTypes.DATEONLY,
     products: DataTypes.JSON,
     promotions: DataTypes.JSON,
   },
-  { sequelize, modelName: "day" }
+  { sequelize, modelName: "day", indexes: [{ unique: true, fields: ["date"] }] }
 );
+
+/*
+export class Day extends Model {}
+Day.init(
+  {
+    date: DataTypes.DATEONLY,
+    products: DataTypes.JSON,
+    promotions: DataTypes.JSON,
+  },
+  { sequelize, modelName: "day", indexes: [{ unique: true, fields: ["date"] }] }
+);
+
+*/

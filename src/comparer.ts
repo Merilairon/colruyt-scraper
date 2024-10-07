@@ -1,36 +1,43 @@
 import "dotenv/config";
-import { getAllProducts } from "./scrapers/productScraper";
-import { getAllPromotions } from "./scrapers/promotionScaper";
 import { sequelize } from "./data";
 import { Day } from "./models/Day";
+import { Op } from "sequelize";
+import { getPriceDifference } from "./comparers/comparer";
 
 /**
  * The main function that executes the program logic.
  */
 async function main() {
   try {
-    // Fetch product data using the proxiedRequest function.
-    let products = await getAllProducts();
-    let promotions = await getAllPromotions();
-
-    // Save the data to the database.
     console.log("==========   Connecting to DB   ==========");
     await sequelize.authenticate();
     await sequelize.sync();
     console.log("==========     DB Connected     ==========");
-    console.log("==========     Saving Data      ==========");
-    const day = await Day.create({
-      date: Date.now(),
-      products: products,
-      promotions: promotions,
+    console.log("==========   Retrieving Data    ==========");
+
+    const days = await Day.findAll({
+      where: {
+        date: { [Op.gte]: new Date().getDate() - 1 }, // yesterday
+      },
+      order: ["date"], // order older first
     });
-    console.log(day.toJSON());
-    console.log("==========     Done Saving      ==========");
+
+    const yesterday = days[0].dataValues as Day;
+    const today = days[1].dataValues as Day;
+    console.log("==========   Data Retrieved     ==========");
+    // Compare the prices of products between yesterday and today.
+    const priceDifferences = await getPriceDifference(
+      yesterday.products,
+      today.products
+    );
+    console.log(priceDifferences);
   } catch (error) {
     // Handle any errors that occur during execution.
     // Log the error message to the console and exit the process with an error code.
     console.error(`Error: ${error.message}`);
     process.exit(1);
+  } finally {
+    await sequelize.close();
   }
 }
 
