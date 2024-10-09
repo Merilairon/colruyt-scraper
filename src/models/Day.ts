@@ -16,16 +16,3 @@ Day.init(
   },
   { sequelize, modelName: "day", indexes: [{ unique: true, fields: ["date"] }] }
 );
-
-/*
-export class Day extends Model {}
-Day.init(
-  {
-    date: DataTypes.DATEONLY,
-    products: DataTypes.JSON,
-    promotions: DataTypes.JSON,
-  },
-  { sequelize, modelName: "day", indexes: [{ unique: true, fields: ["date"] }] }
-);
-
-*/
