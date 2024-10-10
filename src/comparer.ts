@@ -45,14 +45,33 @@ async function main() {
 
     console.log("==========     Saving Data      ==========");
 
-    await PriceChange.bulkCreate(newPriceChanges);
+    let dbPriceChanges = ([] = await PriceChange.bulkCreate(newPriceChanges));
+
+    console.log(
+      `=========   New Changes: ${dbPriceChanges.length.toLocaleString(
+        "en-US",
+        {
+          minimumIntegerDigits: 5,
+          useGrouping: false,
+        }
+      )}   =========`
+    );
+
+    let dbCount = 0;
     updatedPriceChanges.forEach(async (priceChange) => {
       await PriceChange.update(priceChange, {
         where: {
           productId: priceChange.productId,
         },
       });
+      dbCount++;
     });
+    console.log(
+      `=======   Updated Changes: ${dbCount.toLocaleString("en-US", {
+        minimumIntegerDigits: 5,
+        useGrouping: false,
+      })}   =======`
+    );
 
     console.log("==========     Done Saving      ==========");
   } catch (error) {
