@@ -1,5 +1,5 @@
 import { Model, DataTypes } from "sequelize";
-import { sequelize } from "../data";
+import { sequelize } from "../database";
 
 export class Comparison extends Model {}
 Comparison.init(

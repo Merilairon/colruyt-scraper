@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { getAllProducts } from "./scrapers/productScraper";
 import { getAllPromotions } from "./scrapers/promotionScaper";
-import { sequelize } from "./data";
+import { sequelize } from "./database";
 import { Product } from "./models/Product";
 import { Price } from "./models/Price";
 import { Promotion } from "./models/Promotion";

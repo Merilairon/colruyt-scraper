@@ -1,6 +1,6 @@
 import { DataTypes, Model } from "sequelize";
 import { Price } from "./Price";
-import { sequelize } from "../data";
+import { sequelize } from "../database";
 
 export class Product extends Model {
   declare productId: string;

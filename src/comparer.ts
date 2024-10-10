@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { sequelize } from "./data";
+import { sequelize } from "./database";
 import { Op } from "sequelize";
 import { getPriceChange } from "./comparers/comparer";
 import { Price } from "./models/Price";

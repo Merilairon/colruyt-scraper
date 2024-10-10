@@ -1,6 +1,6 @@
 import { DataTypes, Model } from "sequelize";
 import { Benefit } from "./Benefit";
-import { sequelize } from "../data";
+import { sequelize } from "../database";
 
 export class Promotion extends Model {
   declare promotionId: string;

@@ -1,5 +1,5 @@
 import { Model, DataTypes } from "sequelize";
-import { sequelize } from "../data"; // Adjust the path to your sequelize instance
+import { sequelize } from "../database"; // Adjust the path to your sequelize instance
 import { Product } from "./Product";
 
 export class PriceChange extends Model {
