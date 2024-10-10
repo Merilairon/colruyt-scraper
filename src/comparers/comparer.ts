@@ -1,5 +1,5 @@
-import { PriceDifference } from "../models/PriceDifference";
-import { Product } from "../models/Product";
+import { Price } from "../models/Price";
+import { PriceChange } from "../models/PriceChange";
 import { SingleBar, Presets } from "cli-progress";
 
 const progressBar = new SingleBar({}, Presets.shades_classic);
@@ -9,87 +9,76 @@ const progressBar = new SingleBar({}, Presets.shades_classic);
  *
  * @param {Product[]} earlierList - The list of products with earlier prices.
  * @param {Product[]} laterList - The list of products with later prices.
- * @returns {Promise<{ increases: PriceDifference[], decreases: PriceDifference[] }>} - An object containing two arrays: one for price increases and one for price decreases.
+ * @returns {Promise<{ increases: PriceChange[], decreases: PriceChange[] }>} - An object containing two arrays: one for price increases and one for price decreases.
  *
  * @example
  * const earlierList = [{ id: 1, price: 100 }, { id: 2, price: 200 }];
  * const laterList = [{ id: 1, price: 110 }, { id: 2, price: 190 }];
- * const result = await getPriceDifference(earlierList, laterList);
+ * const result = await getPriceChange(earlierList, laterList);
  * console.log(result.increases); // [{ id: 1, priceChangePercentage: 0.1 }]
  * console.log(result.decreases); // [{ id: 2, priceChangePercentage: -0.05 }]
  */
-export async function getPriceDifference(
-  earlierList: Product[],
-  laterList: Product[]
-) {
+export async function getPriceChange(
+  earlierList: Price[],
+  laterList: Price[],
+  priceChanges: PriceChange[]
+): Promise<{
+  updatedPriceChanges: any[];
+  newPriceChanges: any[];
+}> {
   console.log("==========   Comparing Data     ==========");
-  let differences: PriceDifference[] = await compare(earlierList, laterList);
-  let increases: PriceDifference[] = [];
-  let decreases: PriceDifference[] = [];
-  differences.forEach((difference) => {
-    if (difference.priceChangePercentage >= 0.01) {
-      increases.push(difference);
-    } else {
-      decreases.push(difference);
-    }
-  });
-  console.log("==========   Done Comparing     ==========");
-  return { increases, decreases };
-}
-
-/**
- * Compares two lists of products and identifies the price differences between them.
- *
- * @param earlierList - The list of products from an earlier time.
- * @param laterList - The list of products from a later time.
- * @returns A list of price differences for products whose prices have changed.
- *
- * @remarks
- * This function iterates over the `laterList` and finds the corresponding product in the `earlierList`
- * by matching the `commercialArticleNumber`. If the basic price of the product has changed, it calculates
- * the price difference and the percentage change, then stores this information in the `differences` array.
- *
- * @example
- * ```typescript
- * const earlierList: Product[] = [...];
- * const laterList: Product[] = [...];
- * const differences = await compare(earlierList, laterList);
- * console.log(differences);
- * ```
- */
-async function compare(earlierList: Product[], laterList: Product[]) {
-  let differences: PriceDifference[] = [];
+  let updatedPriceChanges: any[] = [];
+  let newPriceChanges: any[] = [];
 
   progressBar.start(laterList.length, 0);
-
   // Compare the two lists of products and return the price difference.
-  laterList.forEach((laterProduct) => {
+  laterList.forEach((laterPrice) => {
     // Find the corresponding product in the earlier list.
-    const earlierProduct = earlierList.find(
-      (earlierProduct) =>
-        earlierProduct.commercialArticleNumber ===
-        laterProduct.commercialArticleNumber
+    const earlierPrice = earlierList.find(
+      (earlierPrice) => earlierPrice.productId === laterPrice.productId
     );
+    const existingPriceChange = priceChanges.find(
+      (pc) => pc.productId === laterPrice.productId
+    );
+    let priceChange: any;
+
     // If the earlier product exists and the basic price has changed, calculate the price difference.
-    if (
-      earlierProduct &&
-      laterProduct.price?.basicPrice !== earlierProduct.price?.basicPrice
-    ) {
-      let change =
-        laterProduct.price?.basicPrice - earlierProduct.price?.basicPrice;
-      differences.push({
-        longName: laterProduct.longName,
+    if (earlierPrice && laterPrice.basicPrice !== earlierPrice.basicPrice) {
+      let change = laterPrice.basicPrice - earlierPrice.basicPrice; //TODO: maybe change based on sequelize
+      priceChange = {
+        productId: laterPrice.productId,
         priceChange: change,
-        priceChangePercentage: change / earlierProduct.price?.basicPrice,
-        oldPrice: earlierProduct.price,
-        price: laterProduct.price,
-        product: laterProduct,
-      } as PriceDifference);
+        priceChangePercentage: change / earlierPrice.basicPrice,
+        involvesPromotion: laterPrice.isPromoActive,
+        oldPrice: earlierPrice.basicPrice,
+        newprice: laterPrice.basicPrice,
+      };
+    } else if (
+      (!earlierPrice || !existingPriceChange) &&
+      laterPrice.basicPrice
+    ) {
+      // If the earlier price does not exist, create a new price change.
+      priceChange = {
+        productId: laterPrice.productId,
+        priceChange: 0,
+        priceChangePercentage: 0,
+        involvesPromotion: laterPrice.isPromoActive,
+        oldPrice: laterPrice.basicPrice,
+        newprice: laterPrice.basicPrice,
+      };
+    }
+    if (priceChange) {
+      // If the price change already exists, update it. Otherwise, add it to the new price changes.
+      if (existingPriceChange) {
+        updatedPriceChanges.push(priceChange);
+      } else {
+        newPriceChanges.push(priceChange);
+      }
     }
     progressBar.increment();
   });
-
   progressBar.stop();
+  console.log("==========   Done Comparing     ==========");
 
-  return differences;
+  return { updatedPriceChanges, newPriceChanges };
 }

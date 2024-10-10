@@ -2,7 +2,10 @@ import "dotenv/config";
 import { getAllProducts } from "./scrapers/productScraper";
 import { getAllPromotions } from "./scrapers/promotionScaper";
 import { sequelize } from "./data";
-import { Day } from "./models/Day";
+import { Product } from "./models/Product";
+import { Price } from "./models/Price";
+import { Promotion } from "./models/Promotion";
+import { Benefit } from "./models/Benefit";
 
 /**
  * The main function that executes the program logic.
@@ -10,20 +13,62 @@ import { Day } from "./models/Day";
 async function main() {
   try {
     // Fetch product data using the proxiedRequest function.
-    let products = await getAllProducts();
-    let promotions = await getAllPromotions();
+    let apiProducts = await getAllProducts();
+    let apiPromotions = await getAllPromotions();
 
     // Save the data to the database.
     console.log("==========   Connecting to DB   ==========");
+
     await sequelize.authenticate();
     await sequelize.sync();
+
     console.log("==========     DB Connected     ==========");
     console.log("==========     Saving Data      ==========");
-    const day = await Day.create({
-      date: Date.now(),
-      products: products,
-      promotions: promotions,
+    const products = await Product.bulkCreate(apiProducts, {
+      ignoreDuplicates: true,
+    }); //doesnt include prices
+
+    const prices = await Price.bulkCreate(
+      apiProducts.map((p) => {
+        return {
+          productId: p.productId,
+          ...p.price,
+        };
+      })
+    );
+
+    await Promotion.destroy({
+      where: {},
+      cascade: true,
+      truncate: true,
+      restartIdentity: true,
     });
+    await Benefit.destroy({
+      where: {},
+      cascade: true,
+      truncate: true,
+      restartIdentity: true,
+    });
+
+    const promotions = await Promotion.bulkCreate(apiPromotions, {
+      ignoreDuplicates: true,
+    });
+
+    let apiBenefits = [];
+    await apiPromotions.forEach((p) => {
+      if (!p.benefit) return;
+      p.benefit.forEach((b) => {
+        apiBenefits.push({
+          promotionId: p.promotionId,
+          ...b,
+        });
+      });
+    });
+
+    const benefits = await Benefit.bulkCreate(apiBenefits, {
+      ignoreDuplicates: true,
+    });
+
     console.log("==========     Done Saving      ==========");
     await sequelize.close();
   } catch (error) {

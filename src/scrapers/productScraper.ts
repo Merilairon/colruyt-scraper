@@ -70,7 +70,7 @@ export async function getAllProducts() {
 
   console.log("==========     Scraping done!     ==========");
   console.log(`Total products scraped: ${products.length}`);
-  return products as Product[];
+  return products;
 }
 
 /**

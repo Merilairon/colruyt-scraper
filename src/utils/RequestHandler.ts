@@ -73,7 +73,7 @@ export class RequestHandler {
     }
 
     let count = 0;
-    let maxTries = 3;
+    let maxTries = 5;
     while (true) {
       try {
         if (!this.api_key && !withoutApiKey) {
@@ -90,6 +90,7 @@ export class RequestHandler {
           httpAgent: agent, // Use the created agent for HTTP requests.
           httpsAgent: agent, // Use the created agent for HTTPS requests.
           timeout: this.tunnelTimeout, // Set the request timeout.
+          signal: AbortSignal.timeout(this.tunnelTimeout), // Set the timeout signal.
           headers, // Include the specified headers.
           params, // Include the specified query parameters.
         });

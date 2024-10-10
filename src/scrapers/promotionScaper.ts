@@ -68,7 +68,7 @@ export async function getAllPromotions() {
 
   console.log("==========     Scraping done!     ==========");
   console.log(`Total promotions scraped: ${promotions.length}`);
-  return promotions as Promotion[];
+  return promotions;
 }
 
 async function getPromotionCount(): Promise<number> {

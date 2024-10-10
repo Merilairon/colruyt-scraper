@@ -1,8 +1,9 @@
 import "dotenv/config";
 import { sequelize } from "./data";
-import { Day } from "./models/Day";
 import { Op } from "sequelize";
-import { getPriceDifference } from "./comparers/comparer";
+import { getPriceChange } from "./comparers/comparer";
+import { Price } from "./models/Price";
+import { PriceChange } from "./models/PriceChange";
 
 /**
  * The main function that executes the program logic.
@@ -15,22 +16,45 @@ async function main() {
     console.log("==========     DB Connected     ==========");
     console.log("==========   Retrieving Data    ==========");
 
-    const days = await Day.findAll({
+    const pricesToday = await Price.findAll({
+      include: ["product"],
       where: {
-        date: { [Op.gte]: new Date().getDate() - 1 }, // yesterday
+        date: { [Op.eq]: Date.now() }, // yesterday
+      },
+      order: ["date"], // order older first
+    });
+    console.log(pricesToday);
+
+    const pricesYesterday = await Price.findAll({
+      include: ["product"],
+      where: {
+        date: { [Op.eq]: Date.now() - 1 }, // yesterday
       },
       order: ["date"], // order older first
     });
 
-    const yesterday = days[0].dataValues as Day;
-    const today = days[1].dataValues as Day;
+    const priceChanges = await PriceChange.findAll();
+
     console.log("==========   Data Retrieved     ==========");
     // Compare the prices of products between yesterday and today.
-    const priceDifferences = await getPriceDifference(
-      yesterday.products,
-      today.products
+    const { updatedPriceChanges, newPriceChanges } = await getPriceChange(
+      pricesYesterday,
+      pricesToday,
+      priceChanges
     );
-    console.log(priceDifferences);
+
+    console.log("==========     Saving Data      ==========");
+
+    await PriceChange.bulkCreate(newPriceChanges);
+    updatedPriceChanges.forEach(async (priceChange) => {
+      await PriceChange.update(priceChange, {
+        where: {
+          productId: priceChange.productId,
+        },
+      });
+    });
+
+    console.log("==========     Done Saving      ==========");
   } catch (error) {
     // Handle any errors that occur during execution.
     // Log the error message to the console and exit the process with an error code.
