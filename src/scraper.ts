@@ -6,6 +6,7 @@ import { Product } from "./models/Product";
 import { Price } from "./models/Price";
 import { Promotion } from "./models/Promotion";
 import { Benefit } from "./models/Benefit";
+import { PromotionProduct } from "./models/PromotionProduct";
 
 /**
  * The main function that executes the program logic.
@@ -54,6 +55,48 @@ async function main() {
       ignoreDuplicates: true,
     });
 
+    apiPromotions = apiPromotions.map((p) => {
+      if (p.linkedTechnicalArticleNumber) {
+        let linkedTechnicalArticleNumbers = p.linkedTechnicalArticleNumber
+          .split(",")
+          .map((id) => id.trim());
+        let productIds = [];
+        linkedTechnicalArticleNumbers.forEach((tan) => {
+          apiProducts.find((p) => {
+            if (p.technicalArticleNumber === tan) {
+              productIds.push(p.productId);
+            }
+          });
+        });
+        return {
+          ...p,
+          products: productIds,
+        };
+      }
+      return p;
+    });
+
+    let apiPromotionProducts = [];
+
+    apiPromotions.forEach((p) => {
+      if (p.products) {
+        p.products.forEach((productId) => {
+          apiPromotionProducts.push({
+            promotionId: p.promotionId,
+            productId: productId,
+          });
+        });
+      }
+    });
+
+    //TODO do a daily check for removed products and promotions and remove them from the db
+    const promotionProducts = await PromotionProduct.bulkCreate(
+      apiPromotionProducts,
+      {
+        ignoreDuplicates: true,
+      }
+    );
+
     let apiBenefits = [];
     await apiPromotions.forEach((p) => {
       if (!p.benefit) return;
@@ -75,6 +118,8 @@ async function main() {
     // Handle any errors that occur during execution.
     // Log the error message to the console and exit the process with an error code.
     console.error(`Error: ${error.message}`);
+    console.error(error.errors);
+    throw error; //TODO: remove this
     process.exit(1);
   }
 }

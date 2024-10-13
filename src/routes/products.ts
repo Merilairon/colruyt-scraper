@@ -104,11 +104,16 @@ async function searchProductsByNameAndAvailability(
  * @returns {Promise<Product[]>} A promise that resolves to an array of all products.
  */
 async function getAllProducts(): Promise<Product[]> {
-  const products = get("products");
-  if (products) {
-    return products;
+  let products = get("products");
+  if (!products) {
+    products = Product.findAll({
+      include: Price,
+      order: [[Price, "date", "desc"]], //order most recent price first
+      logging: false,
+    });
+    put("products", products);
   }
-  return await Product.findAll({ include: Price, logging: false });
+  return products;
 }
 
 /**
@@ -117,11 +122,8 @@ async function getAllProducts(): Promise<Product[]> {
  * @returns {Promise<Product | null>} A promise that resolves to the product object or null if not found.
  */
 async function getProductById(productId: string): Promise<Product | null> {
-  const products = get("products");
-  if (products) {
-    return products.find((product: Product) => product.productId === productId);
-  }
-  return await Product.findOne({ where: { productId }, logging: false });
+  const products = await getAllProducts();
+  return products.find((product: Product) => product.productId === productId);
 }
 
 export default router;
