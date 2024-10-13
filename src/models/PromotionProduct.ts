@@ -14,13 +14,3 @@ PromotionProduct.init(
   },
   { sequelize, modelName: "promotionproduct" }
 );
-
-Promotion.belongsToMany(Product, {
-  through: PromotionProduct,
-  foreignKey: "promotionId",
-});
-
-Product.belongsToMany(Promotion, {
-  through: PromotionProduct,
-  foreignKey: "productId",
-});

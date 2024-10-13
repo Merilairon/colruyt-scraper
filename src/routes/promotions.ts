@@ -6,9 +6,10 @@
 import { Router } from "express";
 import { Product } from "../models/Product";
 import { get, put } from "memory-cache";
-import { Price } from "../models/Price";
 import { Promotion } from "../models/Promotion";
 import { Benefit } from "../models/Benefit";
+import { PromotionProduct } from "../models/PromotionProduct";
+import { Op } from "sequelize";
 
 const router = Router();
 
@@ -64,7 +65,15 @@ router.get("/", async (req, res) => {
 async function getAllPromotions(): Promise<Promotion[]> {
   let promotions = get("promotions");
   if (!promotions) {
-    promotions = Promotion.findAll({ include: Benefit, logging: false });
+    promotions = Promotion.findAll({
+      //include: [{ all: true, nested: true }],
+      include: [
+        Benefit,
+        { model: Product, as: "products", through: { attributes: [] } },
+      ],
+      where: { linkedTechnicalArticleNumber: { [Op.not]: null } },
+      logging: false,
+    });
     put("promotions", promotions);
   }
   return promotions;
@@ -82,7 +91,14 @@ async function getPromotionById(
 ): Promise<Promotion | null> {
   const promotions = await getAllPromotions();
   return promotions.find(
-    (promotion: Promotion) => promotion.promotionId === promotionId
+    (promotion: Promotion) => promotion.promotionId === promotionId,
+    {
+      include: [
+        Benefit,
+        { model: Product, as: "products", through: { attributes: [] } },
+      ],
+      logging: false,
+    }
   );
 }
 

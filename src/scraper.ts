@@ -9,126 +9,119 @@ import { Benefit } from "./models/Benefit";
 import { PromotionProduct } from "./models/PromotionProduct";
 
 /**
+ * Connects to the database and syncs the models.
+ */
+async function connectToDatabase() {
+  console.log("==========   Connecting to DB   ==========");
+  await sequelize.authenticate();
+  await sequelize.sync();
+  console.log("==========     DB Connected     ==========");
+}
+
+/**
+ * Saves products and prices to the database.
+ */
+async function saveProducts(apiProducts) {
+  console.log("==========     Saving Products     ==========");
+  await Product.bulkCreate(apiProducts, { ignoreDuplicates: true });
+  await Price.bulkCreate(
+    apiProducts.map((p) => ({
+      productId: p.productId,
+      ...p.price,
+    }))
+  );
+}
+
+/**
+ * Clears existing promotions and benefits from the database.
+ */
+//TODO do a daily check for removed products and promotions and remove them from the db
+async function clearPromotionsAndBenefits() {
+  console.log("==========     Clearing Promotions and Benefits     ==========");
+  await Promotion.destroy({
+    where: {},
+    cascade: true,
+    truncate: true,
+    restartIdentity: true,
+  });
+  await Benefit.destroy({
+    where: {},
+    cascade: true,
+    truncate: true,
+    restartIdentity: true,
+  });
+}
+
+/**
+ * Saves promotions to the database.
+ */
+async function savePromotions(apiPromotions, apiProducts) {
+  console.log("==========     Saving Promotions     ==========");
+  await Promotion.bulkCreate(apiPromotions, { ignoreDuplicates: true });
+
+  const apiPromotionProducts = [];
+  const apiBenefits = [];
+
+  for (const promotion of apiPromotions) {
+    if (promotion.linkedTechnicalArticleNumber) {
+      const linkedTechnicalArticleNumbers =
+        promotion.linkedTechnicalArticleNumber
+          .split(",")
+          .map((id) => id.trim());
+      const productIds = linkedTechnicalArticleNumbers
+        .map((tan) => {
+          const product = apiProducts.find(
+            (p) => p.technicalArticleNumber === tan
+          );
+          return product ? product.productId : null;
+        })
+        .filter(Boolean);
+
+      for (const productId of productIds) {
+        apiPromotionProducts.push({
+          promotionId: promotion.promotionId,
+          productId,
+        });
+      }
+    }
+
+    if (promotion.benefit) {
+      for (const benefit of promotion.benefit) {
+        apiBenefits.push({ promotionId: promotion.promotionId, ...benefit });
+      }
+    }
+  }
+
+  await PromotionProduct.bulkCreate(apiPromotionProducts, {
+    ignoreDuplicates: true,
+  });
+  await Benefit.bulkCreate(apiBenefits, { ignoreDuplicates: true });
+}
+
+/**
  * The main function that executes the program logic.
  */
 async function main() {
   try {
-    // Fetch product data using the proxiedRequest function.
-    let apiProducts = await getAllProducts();
-    let apiPromotions = await getAllPromotions();
+    const apiProducts = await getAllProducts();
+    const apiPromotions = await getAllPromotions();
 
-    // Save the data to the database.
-    console.log("==========   Connecting to DB   ==========");
-
-    await sequelize.authenticate();
-    await sequelize.sync();
-
-    console.log("==========     DB Connected     ==========");
-    console.log("==========     Saving Data      ==========");
-    const products = await Product.bulkCreate(apiProducts, {
-      ignoreDuplicates: true,
-    }); //doesnt include prices
-
-    const prices = await Price.bulkCreate(
-      apiProducts.map((p) => {
-        return {
-          productId: p.productId,
-          ...p.price,
-        };
-      })
-    );
-
-    await Promotion.destroy({
-      where: {},
-      cascade: true,
-      truncate: true,
-      restartIdentity: true,
-    });
-    await Benefit.destroy({
-      where: {},
-      cascade: true,
-      truncate: true,
-      restartIdentity: true,
-    });
-
-    const promotions = await Promotion.bulkCreate(apiPromotions, {
-      ignoreDuplicates: true,
-    });
-
-    apiPromotions = apiPromotions.map((p) => {
-      if (p.linkedTechnicalArticleNumber) {
-        let linkedTechnicalArticleNumbers = p.linkedTechnicalArticleNumber
-          .split(",")
-          .map((id) => id.trim());
-        let productIds = [];
-        linkedTechnicalArticleNumbers.forEach((tan) => {
-          apiProducts.find((p) => {
-            if (p.technicalArticleNumber === tan) {
-              productIds.push(p.productId);
-            }
-          });
-        });
-        return {
-          ...p,
-          products: productIds,
-        };
-      }
-      return p;
-    });
-
-    let apiPromotionProducts = [];
-
-    apiPromotions.forEach((p) => {
-      if (p.products) {
-        p.products.forEach((productId) => {
-          apiPromotionProducts.push({
-            promotionId: p.promotionId,
-            productId: productId,
-          });
-        });
-      }
-    });
-
-    //TODO do a daily check for removed products and promotions and remove them from the db
-    const promotionProducts = await PromotionProduct.bulkCreate(
-      apiPromotionProducts,
-      {
-        ignoreDuplicates: true,
-      }
-    );
-
-    let apiBenefits = [];
-    await apiPromotions.forEach((p) => {
-      if (!p.benefit) return;
-      p.benefit.forEach((b) => {
-        apiBenefits.push({
-          promotionId: p.promotionId,
-          ...b,
-        });
-      });
-    });
-
-    const benefits = await Benefit.bulkCreate(apiBenefits, {
-      ignoreDuplicates: true,
-    });
+    await connectToDatabase();
+    await saveProducts(apiProducts);
+    await clearPromotionsAndBenefits();
+    await savePromotions(apiPromotions, apiProducts);
 
     console.log("==========     Done Saving      ==========");
     await sequelize.close();
   } catch (error) {
-    // Handle any errors that occur during execution.
-    // Log the error message to the console and exit the process with an error code.
     console.error(`Error: ${error.message}`);
     console.error(error.errors);
-    throw error; //TODO: remove this
     process.exit(1);
   }
 }
 
-//TODO: add more logic for when crashing
 // Call the main function to start the program execution.
-main()
-  .catch(async (e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(async () => {});
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

@@ -1,6 +1,7 @@
 import { DataTypes, Model } from "sequelize";
 import { sequelize } from "../database";
 import { Product } from "./Product";
+import { PromotionProduct } from "./PromotionProduct";
 
 export class Promotion extends Model {
   declare promotionId: string;
@@ -28,3 +29,21 @@ Promotion.init(
   },
   { sequelize, modelName: "promotion" }
 );
+
+Promotion.belongsToMany(Product, {
+  through: PromotionProduct,
+  foreignKey: "promotionId",
+});
+
+Product.belongsToMany(Promotion, {
+  through: PromotionProduct,
+  foreignKey: "productId",
+});
+
+PromotionProduct.belongsTo(Promotion, {
+  foreignKey: "promotionId",
+});
+
+PromotionProduct.belongsTo(Product, {
+  foreignKey: "productId",
+});

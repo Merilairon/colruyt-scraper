@@ -16,24 +16,29 @@ async function main() {
     console.log("==========     DB Connected     ==========");
     console.log("==========   Retrieving Data    ==========");
 
-    const pricesToday = await Price.findAll({
-      include: ["product"],
-      where: {
-        date: { [Op.eq]: Date.now() }, // yesterday
-      },
-      order: ["date"], // order older first
-    });
-    console.log(pricesToday);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-    const pricesYesterday = await Price.findAll({
-      include: ["product"],
-      where: {
-        date: { [Op.eq]: Date.now() - 1 }, // yesterday
-      },
-      order: ["date"], // order older first
-    });
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
 
-    const priceChanges = await PriceChange.findAll();
+    const [pricesToday, pricesYesterday, priceChanges] = await Promise.all([
+      Price.findAll({
+        include: ["product"],
+        where: {
+          date: { [Op.eq]: today },
+        },
+        order: ["date"],
+      }),
+      Price.findAll({
+        include: ["product"],
+        where: {
+          date: { [Op.eq]: yesterday },
+        },
+        order: ["date"],
+      }),
+      PriceChange.findAll(),
+    ]);
 
     console.log("==========   Data Retrieved     ==========");
     // Compare the prices of products between yesterday and today.
@@ -45,7 +50,7 @@ async function main() {
 
     console.log("==========     Saving Data      ==========");
 
-    let dbPriceChanges = ([] = await PriceChange.bulkCreate(newPriceChanges));
+    const dbPriceChanges = await PriceChange.bulkCreate(newPriceChanges);
 
     console.log(
       `=========   New Changes: ${dbPriceChanges.length.toLocaleString(
@@ -57,20 +62,24 @@ async function main() {
       )}   =========`
     );
 
-    let dbCount = 0;
-    updatedPriceChanges.forEach(async (priceChange) => {
-      await PriceChange.update(priceChange, {
+    const updatePromises = updatedPriceChanges.map((priceChange) =>
+      PriceChange.update(priceChange, {
         where: {
           productId: priceChange.productId,
         },
-      });
-      dbCount++;
-    });
+      })
+    );
+
+    await Promise.all(updatePromises);
+
     console.log(
-      `=======   Updated Changes: ${dbCount.toLocaleString("en-US", {
-        minimumIntegerDigits: 5,
-        useGrouping: false,
-      })}   =======`
+      `=======   Updated Changes: ${updatedPriceChanges.length.toLocaleString(
+        "en-US",
+        {
+          minimumIntegerDigits: 5,
+          useGrouping: false,
+        }
+      )}   =======`
     );
 
     console.log("==========     Done Saving      ==========");
@@ -84,11 +93,8 @@ async function main() {
   }
 }
 
-//TODO: add more logic for when crashing
 // Call the main function to start the program execution.
-main()
-  .catch(async (e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(async () => {});
+main().catch(async (e) => {
+  console.error(e);
+  process.exit(1);
+});
