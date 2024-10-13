@@ -10,6 +10,7 @@ import { Router } from "express";
 import { Product } from "../models/Product";
 import { get, put } from "memory-cache";
 import { Price } from "../models/Price";
+import { Op, where } from "sequelize";
 
 const router = Router();
 /**
@@ -107,8 +108,16 @@ async function getAllProducts(): Promise<Product[]> {
   let products = get("products");
   if (!products) {
     products = Product.findAll({
-      include: Price,
-      order: [[Price, "date", "desc"]], //order most recent price first
+      include: {
+        model: Price,
+        where: {
+          date: {
+            [Op.gte]: new Date().getTime() - 30 * 24 * 60 * 60 * 1000, // 30 days in milliseconds
+          },
+        },
+        order: ["date", "desc"],
+      },
+      order: [[Price, "date", "desc"]],
       logging: false,
     });
     put("products", products);
@@ -123,7 +132,19 @@ async function getAllProducts(): Promise<Product[]> {
  */
 async function getProductById(productId: string): Promise<Product | null> {
   const products = await getAllProducts();
-  return products.find((product: Product) => product.productId === productId);
+  return products.find((product: Product) => product.productId === productId, {
+    include: {
+      model: Price,
+      where: {
+        date: {
+          [Op.gte]: new Date().getTime() - 30 * 24 * 60 * 60 * 1000, // 30 days in milliseconds
+        },
+      },
+      order: ["date", "desc"],
+    },
+    order: [[Price, "date", "desc"]],
+    logging: false,
+  });
 }
 
 export default router;
