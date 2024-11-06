@@ -44,7 +44,7 @@ export async function getPriceChange(
 
     // If the earlier product exists and the basic price has changed, calculate the price difference.
     if (earlierPrice && laterPrice.basicPrice !== earlierPrice.basicPrice) {
-      let change = laterPrice.basicPrice - earlierPrice.basicPrice; //TODO: maybe change based on sequelize
+      let change = laterPrice.basicPrice - earlierPrice.basicPrice;
       priceChange = {
         productId: laterPrice.productId,
         priceChange: change,

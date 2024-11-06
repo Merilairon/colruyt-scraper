@@ -11,6 +11,7 @@ import { Product } from "../models/Product";
 import { get, put } from "memory-cache";
 import { Price } from "../models/Price";
 import { Op, where } from "sequelize";
+import { PriceChange } from "../models/PriceChange";
 
 const router = Router();
 /**
@@ -26,44 +27,27 @@ router.get("/:productId", async (req, res) => {
 });
 
 /**
- * Route to search products by name and availability.
- * @name GET /search/:name
- * @param {string} name - The name of the product to search for.
- * @param {boolean} [isAvailable] - Optional availability filter.
- * @returns {Object} An object containing the total number of products and the list of products.
- */
-router.get("/search/:name", async (req, res) => {
-  const { name } = req.params;
-  const { isAvailable } = req.query;
-  const products = await searchProductsByNameAndAvailability(
-    name,
-    isAvailable ? isAvailable === "true" : undefined
-  );
-  res.json({
-    total: products.length,
-    products: products,
-  });
-});
-
-/**
  * Route to get all products in a collection with pagination and availability filter.
  * @name GET /
  * @param {number} [size=50] - The number of products per page.
  * @param {number} [page=1] - The page number to retrieve.
  * @param {boolean} [isAvailable] - Optional availability filter.
+ * @param {string} [search] - Optional search filter.
  * @returns {Object} An object containing the page number, page size, total number of products, and the list of products.
  */
 router.get("/", async (req, res) => {
-  const { size = 50, page = 1, isAvailable } = req.query;
+  const { size = 50, page = 1, isAvailable, search } = req.query;
   const pageSize = parseInt(size as string, 10);
   const pageNumber = parseInt(page as string, 10);
+  const searchQuery = search as string;
 
   const allProducts = await getAllProducts();
   const filteredProducts = allProducts.filter((product: Product) => {
-    return (
-      isAvailable === undefined ||
-      product.isAvailable === (isAvailable === "true")
-    );
+    return search
+      ? product.LongName.toLowerCase().includes(searchQuery.toLowerCase())
+      : true &&
+          (isAvailable === undefined ||
+            product.isAvailable === (isAvailable === "true"));
   });
 
   const paginatedProducts = filteredProducts.slice(
@@ -80,27 +64,6 @@ router.get("/", async (req, res) => {
 });
 
 /**
- * Searches products by name and availability.
- * @param {string} name - The name of the product to search for.
- * @param {boolean} [isAvailable] - Optional availability filter.
- * @returns {Promise<Product[]>} A promise that resolves to an array of products matching the search criteria.
- */
-async function searchProductsByNameAndAvailability(
-  name: string,
-  isAvailable?: boolean
-): Promise<Product[]> {
-  const products = await getAllProducts();
-  return products.filter((product: Product) => {
-    const matchesName = product.LongName.toLowerCase().includes(
-      name.toLowerCase()
-    );
-    const matchesAvailability =
-      isAvailable === undefined || product.isAvailable === isAvailable;
-    return matchesName && matchesAvailability;
-  });
-}
-
-/**
  * Retrieves all products from the cache or database.
  * @returns {Promise<Product[]>} A promise that resolves to an array of all products.
  */
@@ -108,17 +71,24 @@ async function getAllProducts(): Promise<Product[]> {
   let products = get("products");
   if (!products) {
     products = Product.findAll({
-      include: {
-        model: Price,
-        where: {
-          date: {
-            [Op.gte]: new Date().getTime() - 30 * 24 * 60 * 60 * 1000, // 30 days in milliseconds
+      include: [
+        {
+          model: Price,
+          where: {
+            date: {
+              [Op.gte]: new Date().getTime() - 30 * 24 * 60 * 60 * 1000, // 30 days in milliseconds
+            }, //Only get products with a price
+            basicPrice: {
+              [Op.not]: null,
+            },
           },
+          order: ["date", "desc"],
         },
-        order: ["date", "desc"],
-      },
+        {
+          model: PriceChange,
+        },
+      ],
       order: [[Price, "date", "desc"]],
-      logging: false,
     });
     put("products", products);
   }
@@ -133,17 +103,21 @@ async function getAllProducts(): Promise<Product[]> {
 async function getProductById(productId: string): Promise<Product | null> {
   const products = await getAllProducts();
   return products.find((product: Product) => product.productId === productId, {
-    include: {
-      model: Price,
-      where: {
-        date: {
-          [Op.gte]: new Date().getTime() - 30 * 24 * 60 * 60 * 1000, // 30 days in milliseconds
+    include: [
+      {
+        model: Price,
+        where: {
+          date: {
+            [Op.gte]: new Date().getTime() - 30 * 24 * 60 * 60 * 1000, // 30 days in milliseconds
+          },
         },
+        order: ["date", "desc"],
       },
-      order: ["date", "desc"],
-    },
+      {
+        model: PriceChange,
+      },
+    ],
     order: [[Price, "date", "desc"]],
-    logging: false,
   });
 }
 
