@@ -1,33 +1,37 @@
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import { SocksProxyAgent } from "socks-proxy-agent";
 import { Agent } from "node:https";
+import { delay } from "./delay";
 
 export class RequestHandler {
   static #instance: RequestHandler;
   tunnelTimeout = 30000; // 30 seconds
   api_key;
-  agent: Agent;
+  agents: Agent[] = [];
   maxTries = 10;
 
   private constructor() {
     if (process.env.ENABLE_PROXY) {
       // Get the proxy URL from the environment variables.
-      const proxyURL = process.env.PROXY_ENDPOINT;
+      const proxyURLs = process.env.PROXY_ENDPOINT.split(",");
 
-      // Parse the proxy URL.
-      const parsedUrl = new URL(proxyURL);
+      for (let index in proxyURLs) {
+        const proxyURL = proxyURLs[index];
+        // Parse the proxy URL.
+        const parsedUrl: URL = new URL(proxyURL);
 
-      // Create an agent based on the proxy protocol.
-      if (parsedUrl.protocol.startsWith("http")) {
-        // Use HttpsProxyAgent for HTTP proxies.
-        this.agent = new HttpsProxyAgent(proxyURL);
-      } else if (parsedUrl.protocol.startsWith("socks")) {
-        // Use SocksProxyAgent for SOCKS proxies.
-        this.agent = new SocksProxyAgent(proxyURL);
-      } else {
-        // Throw an error if the proxy scheme is unsupported.
-        throw new Error(`Unsupported proxy scheme: ${parsedUrl.protocol}`);
+        // Create an agent based on the proxy protocol.
+        if (parsedUrl.protocol.startsWith("http")) {
+          // Use HttpsProxyAgent for HTTP proxies.
+          this.agents.push(new HttpsProxyAgent(proxyURL));
+        } else if (parsedUrl.protocol.startsWith("socks")) {
+          // Use SocksProxyAgent for SOCKS proxies.
+          this.agents.push(new SocksProxyAgent(proxyURL));
+        } else {
+          // Throw an error if the proxy scheme is unsupported.
+          throw new Error(`Unsupported proxy scheme: ${parsedUrl.protocol}`);
+        }
       }
     }
   }
@@ -69,6 +73,7 @@ export class RequestHandler {
    * @param {string} url - The URL to send the request to.
    * @param {any} [headers={}] - The headers to include in the request.
    * @param {any} [params={}] - The query parameters to include in the request.
+   * @param withoutApiKey
    * @returns {Promise<any>} A promise that resolves with the response data.
    * @throws {Error} If there is an error sending the request or if the proxy scheme is unsupported.
    */
@@ -82,18 +87,23 @@ export class RequestHandler {
       headers["X-Cg-Apikey"] = await this.getApiKey();
     }
 
-    headers["host"] = process.env.HOST_URL; // Set the host URL in the request header.
+    headers["host"] =
+      url === process.env.API_URL
+        ? process.env.HOST_URL
+        : process.env.API_HOST_URL; // Set the host URL in the request header.
 
     let options: any = {
       timeout: this.tunnelTimeout, // Set the request timeout.
       headers, // Include the specified headers.
       params, // Include the specified query parameters.
     };
-
     if (process.env.ENABLE_PROXY) {
+      let agent = this.agents[Math.floor(Math.random() * this.agents.length)];
+      console.log("using proxy: " + agent.getName);
+
       options = {
-        httpAgent: this.agent, // Use the created agent for HTTP requests.
-        httpsAgent: this.agent, // Use the created agent for HTTPS requests.
+        httpAgent: agent, // Use the created agent for HTTP requests.
+        //httpsAgent: agent, // Use the created agent for HTTPS requests.
         ...options,
       };
     }
@@ -109,12 +119,9 @@ export class RequestHandler {
         // Retry the request if the error is a timeout.
         if (++count == this.maxTries) {
           console.warn(`Error on count: (${count})`);
-          throw new Error(
-            `HTTP error: ${
-              error.response ? error.response.status : error.message
-            }`
-          );
+          throw error;
         }
+        if (error?.status === 408) await delay(5000);
         console.warn(`Retrying request... (${count})`);
       }
     }

@@ -5,6 +5,9 @@ import PromotionRoute from "./routes/promotions";
 import swaggerJSDoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
 import cors from "cors";
+import cron from "node-cron";
+import { scraper } from "./scraper";
+import { comparer } from "./comparer";
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -35,4 +38,21 @@ app.use((req, res) => {
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
+});
+
+async function scrapeAndCompare() {
+  await scraper();
+  await comparer();
+}
+
+const now = new Date();
+const hours = now.getHours();
+
+if (hours > 9) {
+  console.log("Started after CRON, starting scraper");
+  scrapeAndCompare();
+}
+
+cron.schedule("0 9 * * *", async () => {
+  await scrapeAndCompare();
 });

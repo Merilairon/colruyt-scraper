@@ -6,9 +6,9 @@ import { Price } from "./models/Price";
 import { PriceChange } from "./models/PriceChange";
 
 /**
- * The main function that executes the program logic.
+ * The comparer function that executes the program logic.
  */
-async function main() {
+export async function comparer() {
   try {
     console.log("==========   Connecting to DB   ==========");
     await sequelize.authenticate();
@@ -87,14 +87,5 @@ async function main() {
     // Handle any errors that occur during execution.
     // Log the error message to the console and exit the process with an error code.
     console.error(`Error: ${error.message}`);
-    process.exit(1);
-  } finally {
-    await sequelize.close();
   }
 }
-
-// Call the main function to start the program execution.
-main().catch(async (e) => {
-  console.error(e);
-  process.exit(1);
-});

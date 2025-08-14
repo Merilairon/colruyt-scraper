@@ -7,6 +7,7 @@ import { Price } from "./models/Price";
 import { Promotion } from "./models/Promotion";
 import { Benefit } from "./models/Benefit";
 import { PromotionProduct } from "./models/PromotionProduct";
+import { PromotionText } from "./models/PromotionText";
 
 /**
  * Connects to the database and syncs the models.
@@ -18,6 +19,7 @@ async function connectToDatabase() {
   console.log("==========     DB Connected     ==========");
 }
 
+//TODO: add P2 prices to the database
 /**
  * Saves products and prices to the database.
  */
@@ -44,7 +46,19 @@ async function clearPromotionsAndBenefits() {
     truncate: true,
     restartIdentity: true,
   });
+  await PromotionProduct.destroy({
+    where: {},
+    cascade: true,
+    truncate: true,
+    restartIdentity: true,
+  });
   await Benefit.destroy({
+    where: {},
+    cascade: true,
+    truncate: true,
+    restartIdentity: true,
+  });
+  await PromotionText.destroy({
     where: {},
     cascade: true,
     truncate: true,
@@ -61,6 +75,7 @@ async function savePromotions(apiPromotions, apiProducts) {
 
   const apiPromotionProducts = [];
   const apiBenefits = [];
+  const apiTexts = [];
 
   for (const promotion of apiPromotions) {
     if (promotion.linkedTechnicalArticleNumber) {
@@ -90,18 +105,25 @@ async function savePromotions(apiPromotions, apiProducts) {
         apiBenefits.push({ promotionId: promotion.promotionId, ...benefit });
       }
     }
+
+    if (promotion.text) {
+      for (const text of promotion.text) {
+        apiTexts.push({ promotionId: promotion.promotionId, ...text });
+      }
+    }
   }
 
   await PromotionProduct.bulkCreate(apiPromotionProducts, {
     ignoreDuplicates: true,
   });
   await Benefit.bulkCreate(apiBenefits, { ignoreDuplicates: true });
+  await PromotionText.bulkCreate(apiTexts, { ignoreDuplicates: true });
 }
 
 /**
- * The main function that executes the program logic.
+ * The scraper function that executes the program logic.
  */
-async function main() {
+export async function scraper() {
   try {
     const apiProducts = await getAllProducts();
     const apiPromotions = await getAllPromotions();
@@ -112,16 +134,8 @@ async function main() {
     await savePromotions(apiPromotions, apiProducts);
 
     console.log("==========     Done Saving      ==========");
-    await sequelize.close();
   } catch (error) {
     console.error(`Error: ${error.message}`);
     console.error(error.errors);
-    process.exit(1);
   }
 }
-
-// Call the main function to start the program execution.
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
