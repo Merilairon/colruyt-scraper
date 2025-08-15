@@ -14,8 +14,8 @@ const port = process.env.PORT || 3000;
 
 app.use(cors());
 
-app.use("/products", productRoute);
-app.use("/promotions", PromotionRoute);
+app.use("/api/products", productRoute);
+app.use("/api/promotions", PromotionRoute);
 
 const swaggerSpec = swaggerJSDoc({
   failOnErrors: true, // Whether or not to throw when parsing errors. Defaults to false.
@@ -29,7 +29,7 @@ const swaggerSpec = swaggerJSDoc({
   apis: ["./src/routes/*.ts"],
 });
 
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Handle unknown paths
 app.use((req, res) => {
@@ -41,8 +41,9 @@ app.listen(port, () => {
 });
 
 async function scrapeAndCompare() {
-  await scraper();
-  await comparer();
+  scraper()
+    .then(comparer)
+    .catch((e) => console.error(e.message));
 }
 
 const now = new Date();
@@ -53,6 +54,10 @@ if (hours > 9) {
   scrapeAndCompare();
 }
 
-cron.schedule("0 9 * * *", async () => {
-  await scrapeAndCompare();
+cron.schedule("0 6 * * *", async () => {
+  try {
+    await scrapeAndCompare();
+  } catch (e) {
+    console.error(e.message);
+  }
 });

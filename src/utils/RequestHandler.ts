@@ -97,20 +97,20 @@ export class RequestHandler {
       headers, // Include the specified headers.
       params, // Include the specified query parameters.
     };
-    if (process.env.ENABLE_PROXY) {
-      let agent = this.agents[Math.floor(Math.random() * this.agents.length)];
-      console.log("using proxy: " + agent.getName);
-
-      options = {
-        httpAgent: agent, // Use the created agent for HTTP requests.
-        //httpsAgent: agent, // Use the created agent for HTTPS requests.
-        ...options,
-      };
-    }
 
     let count = 0;
     while (true) {
       try {
+        if (process.env.ENABLE_PROXY) {
+          let agent =
+            this.agents[Math.floor(Math.random() * this.agents.length)];
+
+          options = {
+            httpAgent: agent, // Use the created agent for HTTP requests.
+            //httpsAgent: agent, // Use the created agent for HTTPS requests.
+            ...options,
+          };
+        }
         // Send the request using axios.
         const response = await axios.get(url, options);
         // Return the response data.
