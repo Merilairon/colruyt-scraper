@@ -6,12 +6,12 @@
 
 //TODO: add openapi documentation for swagger
 
-import {Router} from "express";
-import {Product} from "../models/Product";
-import {get, put} from "memory-cache";
-import {Price} from "../models/Price";
-import {Op} from "sequelize";
-import {PriceChange} from "../models/PriceChange";
+import { Router } from "express";
+import { Product } from "../models/Product";
+import { get, put } from "memory-cache";
+import { Price } from "../models/Price";
+import { Op } from "sequelize";
+import { PriceChange } from "../models/PriceChange";
 
 const router = Router();
 
@@ -27,41 +27,45 @@ const router = Router();
  * @returns {Object} An object containing the page number, page size, total number of products, and the list of products.
  */
 router.get("/", async (req, res) => {
-    const {size = 50, page = 1, isAvailable, search, favourites} = req.query;
-    const pageSize = parseInt(size as string, 10);
-    const pageNumber = parseInt(page as string, 10);
-    const searchQuery = search as string;
-    const favouritesArray = favourites ? (favourites as string).split(",") : undefined;
+  const { size = 50, page = 1, isAvailable, search, favourites } = req.query;
+  const pageSize = parseInt(size as string, 10);
+  const pageNumber = parseInt(page as string, 10);
+  const searchQuery = search as string;
+  const favouritesArray = favourites
+    ? (favourites as string).split(",")
+    : undefined;
 
-    const allProducts = await getAllProducts();
-    let filteredProducts: Product[] = [];
+  const allProducts = await getAllProducts();
+  let filteredProducts: Product[] = [];
 
-    // If favourites are provided, return the products in the favourites list
-    if (favouritesArray) {
-        filteredProducts = allProducts.filter((product: Product) => {
-            return favouritesArray.includes(product.productId);
-        });
-    } else {
-        filteredProducts = allProducts.filter((product: Product) => {
-            return (search
-                    ? product.LongName.toLowerCase().includes(searchQuery.toLowerCase())
-                    : true) &&
-                (isAvailable === undefined ||
-                    product.isAvailable === (isAvailable === "true"));
-        });
-    }
-
-    const paginatedProducts = filteredProducts.slice(
-        (pageNumber - 1) * pageSize,
-        pageNumber * pageSize
-    );
-
-    res.json({
-        page: pageNumber,
-        size: pageSize,
-        total: filteredProducts.length,
-        products: paginatedProducts,
+  // If favourites are provided, return the products in the favourites list
+  if (favouritesArray) {
+    filteredProducts = allProducts.filter((product: Product) => {
+      return favouritesArray.includes(product.productId);
     });
+  } else {
+    filteredProducts = allProducts.filter((product: Product) => {
+      return (
+        (search
+          ? product.LongName.toLowerCase().includes(searchQuery.toLowerCase())
+          : true) &&
+        (isAvailable === undefined ||
+          product.isAvailable === (isAvailable === "true"))
+      );
+    });
+  }
+
+  const paginatedProducts = filteredProducts.slice(
+    (pageNumber - 1) * pageSize,
+    pageNumber * pageSize
+  );
+
+  res.json({
+    page: pageNumber,
+    size: pageSize,
+    total: filteredProducts.length,
+    products: paginatedProducts,
+  });
 });
 
 //TODO: add interesting changes to the product route
@@ -73,9 +77,9 @@ router.get("/", async (req, res) => {
  * @returns {Product | { message: string }} The product object or a message if not found.
  */
 router.get("/:productId", async (req, res) => {
-    const {productId} = req.params;
-    const product = await getProductById(productId);
-    res.json(product || {message: "Product not found"});
+  const { productId } = req.params;
+  const product = await getProductById(productId);
+  res.json(product || { message: "Product not found" });
 });
 
 /**
@@ -83,31 +87,31 @@ router.get("/:productId", async (req, res) => {
  * @returns {Promise<Product[]>} A promise that resolves to an array of all products.
  */
 async function getAllProducts(): Promise<Product[]> {
-    let products = get("products");
-    if (!products) {
-        products = Product.findAll({
-            include: [
-                {
-                    model: Price,
-                    where: {
-                        date: {
-                            [Op.gte]: new Date().getTime() - 30 * 24 * 60 * 60 * 1000, // 30 days in milliseconds
-                        }, //Only get products with a price
-                        basicPrice: {
-                            [Op.not]: null,
-                        },
-                    },
-                    order: ["date", "desc"],
-                },
-                {
-                    model: PriceChange,
-                },
-            ],
-            order: [[Price, "date", "desc"]],
-        });
-        put("products", products);
-    }
-    return products;
+  let products = get("products");
+  if (!products) {
+    products = Product.findAll({
+      include: [
+        {
+          model: Price,
+          where: {
+            date: {
+              [Op.gte]: new Date().getTime() - 30 * 24 * 60 * 60 * 1000, // 30 days in milliseconds
+            }, //Only get products with a price
+            basicPrice: {
+              [Op.not]: null,
+            },
+          },
+          order: ["date", "desc"],
+        },
+        {
+          model: PriceChange,
+        },
+      ],
+      order: [[Price, "date", "desc"]],
+    });
+    put("products", products, 3600000);
+  }
+  return products;
 }
 
 /**
@@ -116,24 +120,24 @@ async function getAllProducts(): Promise<Product[]> {
  * @returns {Promise<Product | null>} A promise that resolves to the product object or null if not found.
  */
 async function getProductById(productId: string): Promise<Product | null> {
-    const products = await getAllProducts();
-    return products.find((product: Product) => product.productId === productId, {
-        include: [
-            {
-                model: Price,
-                where: {
-                    date: {
-                        [Op.gte]: new Date().getTime() - 30 * 24 * 60 * 60 * 1000, // 30 days in milliseconds
-                    },
-                },
-                order: ["date", "desc"],
-            },
-            {
-                model: PriceChange,
-            },
-        ],
-        order: [[Price, "date", "desc"]],
-    });
+  const products = await getAllProducts();
+  return products.find((product: Product) => product.productId === productId, {
+    include: [
+      {
+        model: Price,
+        where: {
+          date: {
+            [Op.gte]: new Date().getTime() - 30 * 24 * 60 * 60 * 1000, // 30 days in milliseconds
+          },
+        },
+        order: ["date", "desc"],
+      },
+      {
+        model: PriceChange,
+      },
+    ],
+    order: [[Price, "date", "desc"]],
+  });
 }
 
 export default router;
