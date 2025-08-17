@@ -7,6 +7,8 @@ export class Price extends Model {
   declare date: Date;
   declare recommendedQuantity?: number;
   declare basicPrice?: number;
+  declare quantityPrice?: number;
+  declare quantityPriceQuantity?: number;
   declare measurementUnitPrice?: number;
   declare measurementUnit?: string;
   declare isRedPrice?: boolean;
@@ -29,6 +31,14 @@ Price.init(
     },
     recommendedQuantity: DataTypes.STRING,
     basicPrice: DataTypes.FLOAT,
+    quantityPrice: {
+      type: DataTypes.FLOAT,
+      allowNull: true,
+    },
+    quantityPriceQuantity: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
     measurementUnitPrice: DataTypes.FLOAT,
     measurementUnit: DataTypes.STRING,
     isRedPrice: DataTypes.BOOLEAN,
