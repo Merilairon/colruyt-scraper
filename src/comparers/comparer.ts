@@ -3,20 +3,21 @@ import { PriceChange } from "../models/PriceChange";
 import { SingleBar, Presets } from "cli-progress";
 
 const progressBar = new SingleBar({}, Presets.shades_classic);
-
+//TODO: add P2 comparing
 /**
- * Compares the prices of products between two lists and categorizes the differences into increases and decreases.
+ * Compares the prices of products between two lists and categorizes the differences into updates and new changes.
  *
  * @param {Product[]} earlierList - The list of products with earlier prices.
  * @param {Product[]} laterList - The list of products with later prices.
- * @returns {Promise<{ increases: PriceChange[], decreases: PriceChange[] }>} - An object containing two arrays: one for price increases and one for price decreases.
+ * @returns {Promise<{ updatedPriceChanges: PriceChange[], newPriceChanges: PriceChange[] }>} - The two lists in a promise, one for updates the other for new changes
  *
  * @example
  * const earlierList = [{ id: 1, price: 100 }, { id: 2, price: 200 }];
  * const laterList = [{ id: 1, price: 110 }, { id: 2, price: 190 }];
- * const result = await getPriceChange(earlierList, laterList);
- * console.log(result.increases); // [{ id: 1, priceChangePercentage: 0.1 }]
- * console.log(result.decreases); // [{ id: 2, priceChangePercentage: -0.05 }]
+ * const laterList = [{ id: 1, price: 110 }, { id: 2, price: 190 }, ...];
+ * const result = await getPriceChange(earlierList, laterList, priceChanges);
+ * console.log(result.updatedPriceChanges); // [{ id: 1, priceChangePercentage: 0.1 }]
+ * console.log(result.PriceChange); // [{ id: 2, priceChangePercentage: -0.05 }]
  */
 export async function getPriceChange(
   earlierList: Price[],
@@ -42,6 +43,8 @@ export async function getPriceChange(
     );
     let priceChange: any;
 
+    // Price changes for P1
+
     // If the earlier product exists and the basic price has changed, calculate the price difference.
     if (earlierPrice && laterPrice.basicPrice !== earlierPrice.basicPrice) {
       let change = laterPrice.basicPrice - earlierPrice.basicPrice;
@@ -52,6 +55,7 @@ export async function getPriceChange(
         involvesPromotion: laterPrice.isPromoActive,
         oldPrice: earlierPrice.basicPrice,
         newprice: laterPrice.basicPrice,
+        priceChangeType: "P1",
       };
     } else if (
       (!earlierPrice || !existingPriceChange) &&
@@ -65,6 +69,7 @@ export async function getPriceChange(
         involvesPromotion: laterPrice.isPromoActive,
         oldPrice: laterPrice.basicPrice,
         newprice: laterPrice.basicPrice,
+        priceChangeType: "P1",
       };
     }
     if (priceChange) {
@@ -75,6 +80,7 @@ export async function getPriceChange(
         newPriceChanges.push(priceChange);
       }
     }
+
     progressBar.increment();
   });
   progressBar.stop();

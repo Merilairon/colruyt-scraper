@@ -19,7 +19,6 @@ async function connectToDatabase() {
   console.log("==========     DB Connected     ==========");
 }
 
-//TODO: add P2 prices to the database
 /**
  * Saves products and prices to the database.
  */

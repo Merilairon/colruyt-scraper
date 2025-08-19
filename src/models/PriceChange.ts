@@ -5,6 +5,7 @@ import { Product } from "./Product";
 export class PriceChange extends Model {
   declare pricechangeId: number;
   declare productId: string;
+  declare priceChangeType: string;
   declare priceChange: number;
   declare priceChangePercentage: number;
   declare involvesPromotion: boolean;
@@ -18,6 +19,10 @@ PriceChange.init(
       type: DataTypes.INTEGER,
       primaryKey: true,
       autoIncrement: true,
+    },
+    priceChangeType: {
+      type: DataTypes.TEXT,
+      defaultValue: "P1",
     },
     priceChange: DataTypes.FLOAT,
     priceChangePercentage: DataTypes.FLOAT,
