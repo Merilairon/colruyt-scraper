@@ -4,8 +4,6 @@
  * and retrieving all products with pagination and availability filtering.
  */
 
-//TODO: add openapi documentation for swagger
-
 import { Router } from "express";
 import { Product } from "../models/Product";
 import { get, put } from "memory-cache";
@@ -87,27 +85,26 @@ router.get("/:productId", async (req, res) => {
  * @returns {Promise<Product[]>} A promise that resolves to an array of all products.
  */
 async function getAllProducts(): Promise<Product[]> {
-  let products = get("products");
+  let products: Product[] | undefined = get("products");
   if (!products) {
-    products = Product.findAll({
+    products = await Product.findAll({
       include: [
         {
           model: Price,
           where: {
             date: {
-              [Op.gte]: new Date().getTime() - 30 * 24 * 60 * 60 * 1000, // 30 days in milliseconds
+              [Op.gte]: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
             }, //Only get products with a price
             basicPrice: {
               [Op.not]: null,
             },
           },
-          order: ["date", "desc"],
         },
         {
           model: PriceChange,
         },
       ],
-      order: [[Price, "date", "desc"]],
+      order: [[Price, "date", "DESC"]],
     });
     put("products", products, 3600000);
   }
@@ -121,23 +118,9 @@ async function getAllProducts(): Promise<Product[]> {
  */
 async function getProductById(productId: string): Promise<Product | null> {
   const products = await getAllProducts();
-  return products.find((product: Product) => product.productId === productId, {
-    include: [
-      {
-        model: Price,
-        where: {
-          date: {
-            [Op.gte]: new Date().getTime() - 30 * 24 * 60 * 60 * 1000, // 30 days in milliseconds
-          },
-        },
-        order: ["date", "desc"],
-      },
-      {
-        model: PriceChange,
-      },
-    ],
-    order: [[Price, "date", "desc"]],
-  });
+  return (
+    products.find((product: Product) => product.productId === productId) || null
+  );
 }
 
 export default router;

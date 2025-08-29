@@ -1,0 +1,243 @@
+tags:
+  - name: Products
+    description: API for products
+
+paths:
+  /api/products:
+    get:
+      summary: Retrieve a list of products
+      description: Retrieve a list of products with pagination, and optional filtering by availability, search query, or a list of favourite product IDs.
+      tags: [Products]
+      parameters:
+        - in: query
+          name: size
+          schema:
+            type: integer
+            default: 50
+          description: The number of products per page.
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: The page number to retrieve.
+        - in: query
+          name: isAvailable
+          schema:
+            type: boolean
+          description: Filter products by availability.
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Search query to filter products by name.
+        - in: query
+          name: favourites
+          schema:
+            type: string
+          description: A comma-separated list of favourite product IDs to retrieve.
+      responses:
+        "200":
+          description: A paginated list of products.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedProducts"
+        "500":
+          description: Internal server error
+
+  /api/products/{productId}:
+    get:
+      summary: Retrieve a single product by its ID
+      description: Retrieve a single product by its ID.
+      tags: [Products]
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+          description: The ID of the product to retrieve.
+      responses:
+        "200":
+          description: The product object.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "404":
+          description: Product not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Product not found
+        "500":
+          description: Internal server error
+
+components:
+  schemas:
+    Price:
+      type: object
+      properties:
+        priceId:
+          type: integer
+          description: The unique identifier for the price record.
+        date:
+          type: string
+          format: date
+          description: The date the price was recorded.
+        recommendedQuantity:
+          type: string
+          description: The recommended quantity for the price.
+        basicPrice:
+          type: number
+          format: float
+          description: The basic price of the product.
+        quantityPrice:
+          type: number
+          format: float
+          description: The price for a specific quantity.
+        quantityPriceQuantity:
+          type: string
+          description: The quantity for the quantity price.
+        measurementUnitPrice:
+          type: number
+          format: float
+          description: The price per measurement unit.
+        measurementUnit:
+          type: string
+          description: The measurement unit (e.g., kg, l).
+        isRedPrice:
+          type: boolean
+          description: Whether the price is a "Red Price" (special offer).
+        pricePerUOM:
+          type: number
+          format: float
+          description: Price per unit of measure.
+        isPromoActive:
+          type: string
+          description: Indicates if a promotion is active for this price.
+        productId:
+          type: string
+          description: The ID of the product this price belongs to.
+    PriceChange:
+      type: object
+      properties:
+        priceChangeId:
+          type: integer
+          description: The unique identifier for the price change.
+        priceChange:
+          type: number
+          format: float
+          description: The absolute change in price.
+        priceChangePercentage:
+          type: number
+          format: float
+          description: The percentage change in price.
+        involvesPromotion:
+          type: boolean
+          description: Whether the price change involves a promotion.
+        oldPrice:
+          type: number
+          format: float
+          description: The old price of the product.
+        newprice:
+          type: number
+          format: float
+          description: The new price of the product.
+        priceChangeType:
+          type: string
+          description: The type of price change (e.g., P1).
+        productId:
+          type: string
+          description: The ID of the product this price change belongs to.
+    Product:
+      type: object
+      properties:
+        productId:
+          type: string
+        name:
+          type: string
+        LongName:
+          type: string
+        ShortName:
+          type: string
+        content:
+          type: string
+        squareImage:
+          type: string
+          format: uri
+        fullImage:
+          type: string
+          format: uri
+        thumbNail:
+          type: string
+          format: uri
+        commercialArticleNumber:
+          type: string
+        technicalArticleNumber:
+          type: string
+        AlcoholVolume:
+          type: string
+        CountryOfOrigin:
+          type: string
+        FicCode:
+          type: string
+        IsBiffe:
+          type: boolean
+        IsBio:
+          type: boolean
+        IsExclusivelySoldInLuxembourg:
+          type: boolean
+        IsNew:
+          type: boolean
+        IsPrivateLabel:
+          type: boolean
+        IsWeightArticle:
+          type: boolean
+        OrderUnit:
+          type: string
+        RecentQuanityOfStockUnits:
+          type: string
+        WeightconversionFactor:
+          type: string
+        brand:
+          type: string
+        businessDomain:
+          type: string
+        isAvailable:
+          type: boolean
+        seoBrand:
+          type: string
+        topCategoryId:
+          type: string
+        topCategoryName:
+          type: string
+        walkRouteSequenceNumber:
+          type: integer
+        prices:
+          type: array
+          items:
+            $ref: "#/components/schemas/Price"
+        priceChange:
+          $ref: "#/components/schemas/PriceChange"
+    PaginatedProducts:
+      type: object
+      properties:
+        page:
+          type: integer
+          example: 1
+        size:
+          type: integer
+          example: 50
+        total:
+          type: integer
+          example: 100
+        products:
+          type: array
+          items:
+            $ref: "#/components/schemas/Product"

@@ -9,11 +9,17 @@
     "build": "tsc",
     "start": "node dist/server.js"
   },
+  "scarfSettings": {
+    "enabled": false
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@types/swagger-jsdoc": "^6.0.4",
+    "@types/swagger-ui-express": "^4.1.8",
     "axios": "^1.11.0",
+    "body-parser": "^2.2.0",
     "cli-progress": "^3.12.0",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
@@ -25,6 +31,7 @@
     "pg": "^8.16.3",
     "pg-hstore": "^2.3.4",
     "sequelize": "^6.37.7",
+    "socks-proxy-agent": "^8.0.5",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1"
   },
@@ -33,9 +40,7 @@
     "@types/express": "^5.0.3",
     "@types/memory-cache": "^0.2.6",
     "@types/node": "^22.17.1",
-    "@types/swagger-jsdoc": "^6.0.4",
     "nodemon": "^3.1.10",
-    "socks-proxy-agent": "^8.0.5",
     "typescript": "^5.9.2"
   },
   "packageManager": "pnpm@9.1.1+sha512.14e915759c11f77eac07faba4d019c193ec8637229e62ec99eefb7cf3c3b75c64447882b7c485142451ee3a6b408059cdfb7b7fa0341b975f12d0f7629c71195"

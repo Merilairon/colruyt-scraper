@@ -1,0 +1,155 @@
+tags:
+  - name: Promotions
+    description: API for promotions
+
+paths:
+  /api/promotions:
+    get:
+      summary: Retrieve a list of promotions
+      description: Retrieve a list of promotions with pagination and sorting options.
+      tags: [Promotions]
+      parameters:
+        - in: query
+          name: size
+          schema:
+            type: integer
+            default: 50
+          description: The number of promotions per page.
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: The page number to retrieve.
+        - in: query
+          name: order
+          schema:
+            type: string
+            enum: [benefit]
+            default: benefit
+          description: The field to order the promotions by.
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+          description: The sort order.
+      responses:
+        "200":
+          description: A paginated list of promotions.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedPromotions"
+        "500":
+          description: Internal server error
+
+  /api/promotions/{promotionId}:
+    get:
+      summary: Retrieve a single promotion by its ID
+      description: Retrieve a single promotion by its ID, including associated products and benefits.
+      tags: [Promotions]
+      parameters:
+        - in: path
+          name: promotionId
+          required: true
+          schema:
+            type: string
+          description: The ID of the promotion to retrieve.
+      responses:
+        "200":
+          description: The promotion object.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Promotion"
+        "404":
+          description: Promotion not found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Promotion not found
+
+components:
+  schemas:
+    Benefit:
+      type: object
+      properties:
+        benefitId:
+          type: integer
+          description: The unique identifier for the benefit.
+        benefitAmount:
+          type: number
+          format: float
+          description: The monetary amount of the benefit.
+        benefitPercentage:
+          type: number
+          format: float
+          description: The percentage of the benefit.
+        minLimit:
+          type: number
+          format: float
+          description: The minimum limit to qualify for the benefit.
+        maxLimit:
+          type: number
+          format: float
+          description: The maximum limit for the benefit.
+        limitUnit:
+          type: string
+          description: The unit for the limit (e.g., quantity, amount).
+    PromotionText:
+      type: object
+      properties:
+        text:
+          type: string
+          description: The descriptive text for the promotion.
+    Promotion:
+      type: object
+      properties:
+        promotionId:
+          type: string
+          description: The unique identifier for the promotion.
+        promotionType:
+          type: string
+          description: The type of the promotion.
+        activeStartDate:
+          type: string
+          format: date
+          description: The start date of the promotion.
+        activeEndDate:
+          type: string
+          format: date
+          description: The end date of the promotion.
+        benefits:
+          type: array
+          items:
+            $ref: "#/components/schemas/Benefit"
+        texts:
+          type: array
+          items:
+            $ref: "#/components/schemas/PromotionText"
+        products:
+          type: array
+          items:
+            $ref: "#/components/schemas/Product"
+    PaginatedPromotions:
+      type: object
+      properties:
+        page:
+          type: integer
+          example: 1
+        size:
+          type: integer
+          example: 50
+        total:
+          type: integer
+          example: 100
+        promotions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Promotion"

@@ -2,14 +2,23 @@ import "dotenv/config";
 import express from "express";
 import productRoute from "./routes/products";
 import PromotionRoute from "./routes/promotions";
-import swaggerJSDoc from "swagger-jsdoc";
+import swaggerJsdoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
 import cors from "cors";
 import cron from "node-cron";
+
 import { scraper } from "./scraper";
 import { comparer } from "./comparer";
+import bodyParser from "body-parser";
+import path from "path";
 
 const app = express();
+app.use(
+  bodyParser.urlencoded({
+    extended: true,
+  })
+);
+app.use(bodyParser.json());
 const port = process.env.PORT || 3000;
 
 app.use(cors());
@@ -17,19 +26,27 @@ app.use(cors());
 app.use("/api/products", productRoute);
 app.use("/api/promotions", PromotionRoute);
 
-const swaggerSpec = swaggerJSDoc({
-  failOnErrors: true, // Whether or not to throw when parsing errors. Defaults to false.
+const options = {
   definition: {
-    openapi: "3.0.0",
+    openapi: "3.1.0",
     info: {
-      title: "Hello World",
+      title: "Colruit Swagger API",
       version: "1.0.0",
     },
   },
-  apis: ["./src/routes/*.ts"],
-});
+  apis: [
+    path.join(__dirname, "routes/*.js"),
+    path.join(__dirname, "../src/docs/*.yaml"),
+    path.join(__dirname, "docs/*.yaml"),
+  ],
+};
 
-app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+const specs = swaggerJsdoc(options);
+app.use(
+  "/api/docs",
+  swaggerUi.serve,
+  swaggerUi.setup(specs, { explorer: true })
+);
 
 // Handle unknown paths
 app.use((req, res) => {
@@ -49,10 +66,10 @@ async function scrapeAndCompare() {
 const now = new Date();
 const hours = now.getHours();
 
-if (hours > 9) {
-  console.log("Started after CRON, starting scraper");
-  scrapeAndCompare();
-}
+// if (hours > 9) {
+//   console.log("Started after CRON, starting scraper");
+//   scrapeAndCompare();
+// }
 
 cron.schedule("0 6 * * *", async () => {
   try {

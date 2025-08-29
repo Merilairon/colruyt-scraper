@@ -113,7 +113,11 @@ async function getAllPromotions(): Promise<Promotion[]> {
       include: [
         {
           model: Benefit,
-          order: [["minLimit", "asc"]],
+          order: [
+            ["benefitAmount", "asc"],
+            ["benefitPercentage", "asc"],
+            ["minLimit", "asc"],
+          ],
         },
         PromotionText,
         {
@@ -124,13 +128,14 @@ async function getAllPromotions(): Promise<Promotion[]> {
               model: Price,
               where: {
                 date: {
-                  [Op.gte]: new Date().getTime() - 30 * 24 * 60 * 60 * 1000, // 30 days in milliseconds
-                }, //Only get products with a price
+                  //Only get products with a price
+                  [Op.gte]: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
+                },
                 basicPrice: {
                   [Op.not]: null,
                 },
               },
-              order: ["date", "desc"],
+              order: [["date", "DESC"]],
             },
             {
               model: PriceChange,
@@ -160,43 +165,10 @@ async function getPromotionById(
   promotionId: string
 ): Promise<Promotion | null> {
   const promotions = await getAllPromotions();
-  return promotions.find(
-    (promotion: Promotion) => promotion.promotionId === promotionId,
-    {
-      include: [
-        {
-          model: Benefit,
-          order: [
-            ["benefitAmount", "asc"],
-            ["benefitPercentage", "asc"],
-            ["minLimit", "asc"],
-          ],
-        },
-        PromotionText,
-        {
-          model: Product,
-          as: "products",
-          include: [
-            {
-              model: Price,
-              where: {
-                date: {
-                  [Op.gte]: new Date().getTime() - 30 * 24 * 60 * 60 * 1000, // 30 days in milliseconds
-                }, //Only get products with a price
-                basicPrice: {
-                  [Op.not]: null,
-                },
-              },
-              order: ["date", "desc"],
-            },
-            {
-              model: PriceChange,
-            },
-          ],
-          through: { attributes: [] },
-        },
-      ],
-    }
+  return (
+    promotions.find(
+      (promotion: Promotion) => promotion.promotionId === promotionId
+    ) || null
   );
 }
 
