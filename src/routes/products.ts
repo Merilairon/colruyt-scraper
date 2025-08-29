@@ -10,17 +10,17 @@ import { get, put } from "memory-cache";
 import { Price } from "../models/Price";
 import { Op } from "sequelize";
 import { PriceChange } from "../models/PriceChange";
+import Fuse from "fuse.js";
 
 const router = Router();
 
-//TODO: add fuzzy search for product names
 /**
  * Route to get all products in a collection with pagination, availability filter, and favourites filter.
  * @name GET /
  * @param {number} [size=50] - The number of products per page.
  * @param {number} [page=1] - The page number to retrieve.
  * @param {boolean} [isAvailable] - Optional availability filter.
- * @param {string} [search] - Optional search filter.
+ * @param {string} [search] - Optional search filter for fuzzy searching product names.
  * @param {string} [favourites] - Optional comma-separated list of favourite product IDs.
  * @returns {Object} An object containing the page number, page size, total number of products, and the list of products.
  */
@@ -34,23 +34,32 @@ router.get("/", async (req, res) => {
     : undefined;
 
   const allProducts = await getAllProducts();
-  let filteredProducts: Product[] = [];
+  let filteredProducts: Product[];
 
   // If favourites are provided, return the products in the favourites list
   if (favouritesArray) {
-    filteredProducts = allProducts.filter((product: Product) => {
-      return favouritesArray.includes(product.productId);
-    });
+    const favouritesSet = new Set(favouritesArray);
+    filteredProducts = allProducts.filter((product: Product) =>
+      favouritesSet.has(product.productId)
+    );
   } else {
-    filteredProducts = allProducts.filter((product: Product) => {
-      return (
-        (search
-          ? product.LongName.toLowerCase().includes(searchQuery.toLowerCase())
-          : true) &&
-        (isAvailable === undefined ||
-          product.isAvailable === (isAvailable === "true"))
-      );
-    });
+    let productsToFilter = allProducts;
+    // Fuzzy search if search query is provided
+    if (searchQuery) {
+      const fuseOptions = {
+        threshold: 0.2, // Adjust for strictness. 0.0 is perfect match, 1.0 is any match.
+        keys: ["LongName", "ShortName", "brand"],
+      };
+      const fuse = new Fuse(allProducts, fuseOptions);
+      productsToFilter = fuse.search(searchQuery).map((result) => result.item);
+    }
+
+    // Filter by availability
+    filteredProducts = productsToFilter.filter(
+      (product) =>
+        isAvailable === undefined ||
+        product.isAvailable === (isAvailable === "true")
+    );
   }
 
   const paginatedProducts = filteredProducts.slice(
