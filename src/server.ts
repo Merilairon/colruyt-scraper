@@ -66,10 +66,10 @@ async function scrapeAndCompare() {
 const now = new Date();
 const hours = now.getHours();
 
-// if (hours > 9) {
-//   console.log("Started after CRON, starting scraper");
-//   scrapeAndCompare();
-// }
+if (hours > 9) {
+  console.log("Started after CRON, starting scraper");
+  scrapeAndCompare();
+}
 
 cron.schedule("0 6 * * *", async () => {
   try {

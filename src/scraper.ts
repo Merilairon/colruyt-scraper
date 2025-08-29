@@ -8,6 +8,7 @@ import { Promotion } from "./models/Promotion";
 import { Benefit } from "./models/Benefit";
 import { PromotionProduct } from "./models/PromotionProduct";
 import { PromotionText } from "./models/PromotionText";
+import { Op } from "sequelize";
 
 /**
  * Connects to the database and syncs the models.
@@ -24,45 +25,77 @@ async function connectToDatabase() {
  */
 async function saveProducts(apiProducts) {
   console.log("==========     Saving Products     ==========");
-  await Product.bulkCreate(apiProducts, { ignoreDuplicates: true });
+  // Upsert products to handle new and updated ones.
+  await Product.bulkCreate(apiProducts, {
+    updateOnDuplicate: Object.keys(Product.getAttributes()),
+  });
   await Price.bulkCreate(
     apiProducts.map((p) => ({
       productId: p.productId,
       ...p.price,
-    }))
+    })),
+    { ignoreDuplicates: true } // Ignore if a price for this product on this day already exists.
   );
 }
 
 /**
- * Clears existing promotions and benefits from the database.
+ * Removes products and promotions from the database that are no longer available in the API.
+ * This prevents the database from growing with stale data.
+ * @param apiProducts The list of products currently available from the API.
+ * @param apiPromotions The list of promotions currently available from the API.
  */
-//TODO do a daily check for removed products and promotions and remove them from the db
-async function clearPromotionsAndBenefits() {
-  console.log("==========     Clearing Promotions and Benefits     ==========");
-  await Promotion.destroy({
-    where: {},
-    cascade: true,
-    truncate: true,
-    restartIdentity: true,
+async function handleStaleData(apiProducts: any[], apiPromotions: any[]) {
+  console.log("==========     Checking for stale data     ==========");
+
+  // 1. Handle stale products
+  const allDbProducts = await Product.findAll({ attributes: ["productId"] });
+  const dbProductIds = new Set(allDbProducts.map((p) => p.productId));
+  const apiProductIds = new Set(apiProducts.map((p) => p.productId));
+
+  const productsToRemove = [...dbProductIds].filter(
+    (id) => !apiProductIds.has(id)
+  );
+
+  if (productsToRemove.length > 0) {
+    console.log(`Found ${productsToRemove.length} stale products to remove.`);
+    // Assuming Product model has cascade delete for its associations (Price, PriceChange, etc.)
+    await Product.destroy({
+      where: {
+        productId: {
+          [Op.in]: productsToRemove,
+        },
+      },
+    });
+  } else {
+    console.log("No stale products found.");
+  }
+
+  // 2. Handle stale promotions
+  const allDbPromotions = await Promotion.findAll({
+    attributes: ["promotionId"],
   });
-  await PromotionProduct.destroy({
-    where: {},
-    cascade: true,
-    truncate: true,
-    restartIdentity: true,
-  });
-  await Benefit.destroy({
-    where: {},
-    cascade: true,
-    truncate: true,
-    restartIdentity: true,
-  });
-  await PromotionText.destroy({
-    where: {},
-    cascade: true,
-    truncate: true,
-    restartIdentity: true,
-  });
+  const dbPromotionIds = new Set(allDbPromotions.map((p) => p.promotionId));
+  const apiPromotionIds = new Set(apiPromotions.map((p) => p.promotionId));
+
+  const promotionsToRemove = [...dbPromotionIds].filter(
+    (id) => !apiPromotionIds.has(id)
+  );
+
+  if (promotionsToRemove.length > 0) {
+    console.log(
+      `Found ${promotionsToRemove.length} stale promotions to remove.`
+    );
+    // Assuming Promotion model has cascade delete for its associations
+    await Promotion.destroy({
+      where: {
+        promotionId: {
+          [Op.in]: promotionsToRemove,
+        },
+      },
+    });
+  } else {
+    console.log("No stale promotions found.");
+  }
 }
 
 /**
@@ -70,7 +103,25 @@ async function clearPromotionsAndBenefits() {
  */
 async function savePromotions(apiPromotions, apiProducts) {
   console.log("==========     Saving Promotions     ==========");
-  await Promotion.bulkCreate(apiPromotions, { ignoreDuplicates: true });
+  // Upsert promotions to handle new and updated ones.
+  await Promotion.bulkCreate(apiPromotions, {
+    updateOnDuplicate: Object.keys(Promotion.getAttributes()),
+  });
+
+  // For the promotions we are processing, we'll clear their old associations
+  // and bulk-insert the new ones. This is more efficient than a per-promotion update.
+  const apiPromotionIds = apiPromotions.map((p) => p.promotionId);
+  if (apiPromotionIds.length > 0) {
+    await PromotionProduct.destroy({
+      where: { promotionId: { [Op.in]: apiPromotionIds } },
+    });
+    await Benefit.destroy({
+      where: { promotionId: { [Op.in]: apiPromotionIds } },
+    });
+    await PromotionText.destroy({
+      where: { promotionId: { [Op.in]: apiPromotionIds } },
+    });
+  }
 
   const apiPromotionProducts = [];
   const apiBenefits = [];
@@ -128,8 +179,8 @@ export async function scraper() {
     const apiPromotions = await getAllPromotions();
 
     await connectToDatabase();
+    await handleStaleData(apiProducts, apiPromotions);
     await saveProducts(apiProducts);
-    await clearPromotionsAndBenefits();
     await savePromotions(apiPromotions, apiProducts);
 
     console.log("==========     Done Saving      ==========");
