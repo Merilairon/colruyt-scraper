@@ -125,6 +125,9 @@ components:
           type: string
           format: date
           description: The end date of the promotion.
+        topPromo:
+          type: boolean
+          description: Indicates if the promotion is a top promotion.
         benefits:
           type: array
           items:
