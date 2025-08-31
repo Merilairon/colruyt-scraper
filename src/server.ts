@@ -4,6 +4,7 @@ import productRoute from "./routes/products";
 import PromotionRoute from "./routes/promotions";
 import swaggerJsdoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
+import cors from "cors";
 import cron from "node-cron";
 
 import { scraper } from "./scraper";
@@ -19,6 +20,8 @@ app.use(
 );
 app.use(bodyParser.json());
 const port = process.env.PORT || 3000;
+
+app.use(cors());
 
 app.use("/api/products", productRoute);
 app.use("/api/promotions", PromotionRoute);
