@@ -3,7 +3,6 @@ import { PriceChange } from "../models/PriceChange";
 import { SingleBar, Presets } from "cli-progress";
 
 const progressBar = new SingleBar({}, Presets.shades_classic);
-//TODO: add P2 comparing
 /**
  * Compares the prices of products between two lists and categorizes the differences into updates and new changes.
  *
@@ -41,43 +40,74 @@ export async function getPriceChange(
     const existingPriceChange = priceChanges.find(
       (pc) => pc.productId === laterPrice.productId
     );
-    let priceChange: any;
 
     // Price changes for P1
-
-    // If the earlier product exists and the basic price has changed, calculate the price difference.
-    if (earlierPrice && laterPrice.basicPrice !== earlierPrice.basicPrice) {
-      let change = laterPrice.basicPrice - earlierPrice.basicPrice;
-      priceChange = {
-        productId: laterPrice.productId,
-        priceChange: change,
-        priceChangePercentage: change / earlierPrice.basicPrice,
-        involvesPromotion: laterPrice.isPromoActive,
-        oldPrice: earlierPrice.basicPrice,
-        newprice: laterPrice.basicPrice,
-        priceChangeType: "P1",
-      };
-    } else if (
-      (!earlierPrice || !existingPriceChange) &&
-      laterPrice.basicPrice
-    ) {
-      // If the earlier price does not exist, create a new price change.
-      priceChange = {
-        productId: laterPrice.productId,
-        priceChange: 0,
-        priceChangePercentage: 0,
-        involvesPromotion: laterPrice.isPromoActive,
-        oldPrice: laterPrice.basicPrice,
-        newprice: laterPrice.basicPrice,
-        priceChangeType: "P1",
-      };
-    }
-    if (priceChange) {
-      // If the price change already exists, update it. Otherwise, add it to the new price changes.
+    const processPriceChange = (priceChange: any) => {
       if (existingPriceChange) {
         updatedPriceChanges.push(priceChange);
       } else {
         newPriceChanges.push(priceChange);
+      }
+    };
+
+    // P1 (basicPrice) comparison
+    if (laterPrice.basicPrice) {
+      if (earlierPrice && laterPrice.basicPrice !== earlierPrice.basicPrice) {
+        const change = laterPrice.basicPrice - earlierPrice.basicPrice;
+        processPriceChange({
+          productId: laterPrice.productId,
+          priceChange: change,
+          priceChangePercentage:
+            earlierPrice.basicPrice > 0 ? change / earlierPrice.basicPrice : 0,
+          involvesPromotion: laterPrice.isPromoActive,
+          oldPrice: earlierPrice.basicPrice,
+          newprice: laterPrice.basicPrice,
+          priceChangeType: "P1",
+        });
+      } else if (!earlierPrice || !existingPriceChange) {
+        // New product or no existing price change record
+        processPriceChange({
+          productId: laterPrice.productId,
+          priceChange: 0,
+          priceChangePercentage: 0,
+          involvesPromotion: laterPrice.isPromoActive,
+          oldPrice: laterPrice.basicPrice,
+          newprice: laterPrice.basicPrice,
+          priceChangeType: "P1",
+        });
+      }
+    }
+
+    // P2 (quantityPrice) comparison
+    if (laterPrice.quantityPrice) {
+      const oldPriceForP2 =
+        earlierPrice?.quantityPrice || earlierPrice?.basicPrice;
+
+      if (earlierPrice && oldPriceForP2) {
+        if (laterPrice.quantityPrice !== oldPriceForP2) {
+          const change = laterPrice.quantityPrice - oldPriceForP2;
+          processPriceChange({
+            productId: laterPrice.productId,
+            priceChange: change,
+            priceChangePercentage:
+              oldPriceForP2 > 0 ? change / oldPriceForP2 : 0,
+            involvesPromotion: laterPrice.isPromoActive,
+            oldPrice: oldPriceForP2,
+            newprice: laterPrice.quantityPrice,
+            priceChangeType: "P2",
+          });
+        }
+      } else if (!earlierPrice || !existingPriceChange) {
+        // New product with a P2 price, or no existing price change record
+        processPriceChange({
+          productId: laterPrice.productId,
+          priceChange: 0,
+          priceChangePercentage: 0,
+          involvesPromotion: laterPrice.isPromoActive,
+          oldPrice: laterPrice.quantityPrice,
+          newprice: laterPrice.quantityPrice,
+          priceChangeType: "P2",
+        });
       }
     }
 

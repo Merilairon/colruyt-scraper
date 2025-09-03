@@ -9,6 +9,7 @@ import { PriceChange } from "./models/PriceChange";
  * The comparer function that executes the program logic.
  */
 export async function comparer() {
+  console.log("==========   Starting Comparer  ==========");
   try {
     console.log("==========   Connecting to DB   ==========");
     await sequelize.authenticate();
@@ -50,37 +51,43 @@ export async function comparer() {
 
     console.log("==========     Saving Data      ==========");
 
-    const dbPriceChanges = await PriceChange.bulkCreate(newPriceChanges);
+    await sequelize.transaction(async (t) => {
+      const dbPriceChanges = await PriceChange.bulkCreate(newPriceChanges, {
+        transaction: t,
+      });
 
-    console.log(
-      `=========   New Changes: ${dbPriceChanges.length.toLocaleString(
-        "en-US",
-        {
-          minimumIntegerDigits: 5,
-          useGrouping: false,
-        }
-      )}   =========`
-    );
+      console.log(
+        `=========   New Changes: ${dbPriceChanges.length.toLocaleString(
+          "en-US",
+          {
+            minimumIntegerDigits: 5,
+            useGrouping: false,
+          }
+        )}   =========`
+      );
 
-    const updatePromises = updatedPriceChanges.map((priceChange) =>
-      PriceChange.update(priceChange, {
-        where: {
-          productId: priceChange.productId,
-        },
-      })
-    );
+      const updatePromises = updatedPriceChanges.map((priceChange) =>
+        PriceChange.update(priceChange, {
+          where: {
+            productId: priceChange.productId,
+            priceChangeType: priceChange.priceChangeType,
+          },
+          transaction: t,
+        })
+      );
 
-    await Promise.all(updatePromises);
+      await Promise.all(updatePromises);
 
-    console.log(
-      `=======   Updated Changes: ${updatedPriceChanges.length.toLocaleString(
-        "en-US",
-        {
-          minimumIntegerDigits: 5,
-          useGrouping: false,
-        }
-      )}   =======`
-    );
+      console.log(
+        `=======   Updated Changes: ${updatedPriceChanges.length.toLocaleString(
+          "en-US",
+          {
+            minimumIntegerDigits: 5,
+            useGrouping: false,
+          }
+        )}   =======`
+      );
+    });
 
     console.log("==========     Done Saving      ==========");
   } catch (error) {

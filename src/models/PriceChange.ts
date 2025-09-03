@@ -22,6 +22,7 @@ PriceChange.init(
     },
     priceChangeType: {
       type: DataTypes.TEXT,
+      primaryKey: true,
       defaultValue: "P1",
     },
     priceChange: DataTypes.FLOAT,
@@ -33,8 +34,12 @@ PriceChange.init(
   {
     sequelize,
     modelName: "pricechange",
+    indexes: [
+      // Add a composite unique index
+      { unique: true, fields: ["productId", "priceChangeType"] },
+    ],
   }
 );
 
-Product.hasOne(PriceChange, { foreignKey: "productId" });
+Product.hasMany(PriceChange, { foreignKey: "productId" });
 PriceChange.belongsTo(Product, { foreignKey: "productId" });

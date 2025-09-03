@@ -8,7 +8,7 @@ import { Promotion } from "./models/Promotion";
 import { Benefit } from "./models/Benefit";
 import { PromotionProduct } from "./models/PromotionProduct";
 import { PromotionText } from "./models/PromotionText";
-import { Op } from "sequelize";
+import { Op, Transaction } from "sequelize";
 
 /**
  * Connects to the database and syncs the models.
@@ -23,18 +23,26 @@ async function connectToDatabase() {
 /**
  * Saves products and prices to the database.
  */
-async function saveProducts(apiProducts) {
+async function saveProducts(apiProducts: any[], transaction: Transaction) {
   console.log("==========     Saving Products     ==========");
+
+  // De-duplicate products by productId to prevent "ON CONFLICT" errors.
+  const uniqueProducts = Array.from(
+    new Map(apiProducts.map((p) => [p.productId, p])).values()
+  );
+
   // Upsert products to handle new and updated ones.
-  await Product.bulkCreate(apiProducts, {
+  await Product.bulkCreate(uniqueProducts, {
     updateOnDuplicate: Object.keys(Product.getAttributes()),
+    transaction,
   });
+
   await Price.bulkCreate(
-    apiProducts.map((p) => ({
+    uniqueProducts.map((p) => ({
       productId: p.productId,
       ...p.price,
     })),
-    { ignoreDuplicates: true } // Ignore if a price for this product on this day already exists.
+    { ignoreDuplicates: true, transaction } // Ignore if a price for this product on this day already exists.
   );
 }
 
@@ -44,7 +52,11 @@ async function saveProducts(apiProducts) {
  * @param apiProducts The list of products currently available from the API.
  * @param apiPromotions The list of promotions currently available from the API.
  */
-async function handleStaleData(apiProducts: any[], apiPromotions: any[]) {
+async function handleStaleData(
+  apiProducts: any[],
+  apiPromotions: any[],
+  transaction: Transaction
+) {
   console.log("==========     Checking for stale data     ==========");
 
   // 1. Handle stale products
@@ -65,6 +77,7 @@ async function handleStaleData(apiProducts: any[], apiPromotions: any[]) {
           [Op.in]: productsToRemove,
         },
       },
+      transaction,
     });
   } else {
     console.log("No stale products found.");
@@ -92,6 +105,7 @@ async function handleStaleData(apiProducts: any[], apiPromotions: any[]) {
           [Op.in]: promotionsToRemove,
         },
       },
+      transaction,
     });
   } else {
     console.log("No stale promotions found.");
@@ -101,33 +115,44 @@ async function handleStaleData(apiProducts: any[], apiPromotions: any[]) {
 /**
  * Saves promotions to the database.
  */
-async function savePromotions(apiPromotions, apiProducts) {
+async function savePromotions(
+  apiPromotions: any[],
+  apiProducts: any[],
+  transaction: Transaction
+) {
   console.log("==========     Saving Promotions     ==========");
+
+  // De-duplicate promotions by promotionId to prevent "ON CONFLICT" errors.
+  const uniquePromotions = Array.from(
+    new Map(apiPromotions.map((p) => [p.promotionId, p])).values()
+  );
+
   // Upsert promotions to handle new and updated ones.
-  await Promotion.bulkCreate(apiPromotions, {
+  await Promotion.bulkCreate(uniquePromotions, {
     updateOnDuplicate: Object.keys(Promotion.getAttributes()),
+    transaction,
   });
 
   // For the promotions we are processing, we'll clear their old associations
   // and bulk-insert the new ones. This is more efficient than a per-promotion update.
-  const apiPromotionIds = apiPromotions.map((p) => p.promotionId);
+  const apiPromotionIds = uniquePromotions.map((p) => p.promotionId);
   if (apiPromotionIds.length > 0) {
-    await PromotionProduct.destroy({
+    const destroyOptions = {
       where: { promotionId: { [Op.in]: apiPromotionIds } },
-    });
-    await Benefit.destroy({
-      where: { promotionId: { [Op.in]: apiPromotionIds } },
-    });
-    await PromotionText.destroy({
-      where: { promotionId: { [Op.in]: apiPromotionIds } },
-    });
+      transaction,
+    };
+    await Promise.all([
+      PromotionProduct.destroy(destroyOptions),
+      Benefit.destroy(destroyOptions),
+      PromotionText.destroy(destroyOptions),
+    ]);
   }
 
   const apiPromotionProducts = [];
   const apiBenefits = [];
   const apiTexts = [];
 
-  for (const promotion of apiPromotions) {
+  for (const promotion of uniquePromotions) {
     if (promotion.linkedTechnicalArticleNumber) {
       const linkedTechnicalArticleNumbers =
         promotion.linkedTechnicalArticleNumber
@@ -165,23 +190,34 @@ async function savePromotions(apiPromotions, apiProducts) {
 
   await PromotionProduct.bulkCreate(apiPromotionProducts, {
     ignoreDuplicates: true,
+    transaction,
   });
-  await Benefit.bulkCreate(apiBenefits, { ignoreDuplicates: true });
-  await PromotionText.bulkCreate(apiTexts, { ignoreDuplicates: true });
+  await Benefit.bulkCreate(apiBenefits, {
+    ignoreDuplicates: true,
+    transaction,
+  });
+  await PromotionText.bulkCreate(apiTexts, {
+    ignoreDuplicates: true,
+    transaction,
+  });
 }
 
 /**
  * The scraper function that executes the program logic.
  */
 export async function scraper() {
+  console.log("==========   Starting Scraper   ==========");
   try {
     const apiProducts = await getAllProducts();
     const apiPromotions = await getAllPromotions();
 
     await connectToDatabase();
-    await handleStaleData(apiProducts, apiPromotions);
-    await saveProducts(apiProducts);
-    await savePromotions(apiPromotions, apiProducts);
+
+    await sequelize.transaction(async (t) => {
+      await handleStaleData(apiProducts, apiPromotions, t);
+      await saveProducts(apiProducts, t);
+      await savePromotions(apiPromotions, apiProducts, t);
+    });
 
     console.log("==========     Done Saving      ==========");
   } catch (error) {
