@@ -2,10 +2,15 @@ import { Model, DataTypes } from "sequelize";
 import { sequelize } from "../database"; // Adjust the path to your sequelize instance
 import { Product } from "./Product";
 
+export enum PriceChangeType {
+  BASIC = "P1",
+  QUANTITY = "P2",
+}
+
 export class PriceChange extends Model {
   declare pricechangeId: number;
   declare productId: string;
-  declare priceChangeType: string;
+  declare priceChangeType: PriceChangeType;
   declare priceChange: number;
   declare priceChangePercentage: number;
   declare involvesPromotion: boolean;
@@ -23,7 +28,7 @@ PriceChange.init(
     priceChangeType: {
       type: DataTypes.TEXT,
       primaryKey: true,
-      defaultValue: "P1",
+      defaultValue: PriceChangeType.BASIC,
     },
     priceChange: DataTypes.FLOAT,
     priceChangePercentage: DataTypes.FLOAT,

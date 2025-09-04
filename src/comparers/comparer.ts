@@ -1,5 +1,5 @@
 import { Price } from "../models/Price";
-import { PriceChange } from "../models/PriceChange"; // Assuming PriceChange attributes are defined
+import { PriceChange, PriceChangeType } from "../models/PriceChange"; // Assuming PriceChange attributes are defined
 import { SingleBar, Presets } from "cli-progress";
 
 const progressBar = new SingleBar({}, Presets.shades_classic);
@@ -38,91 +38,72 @@ export async function getPriceChange(
     priceChanges.map((pc) => [`${pc.productId}-${pc.priceChangeType}`, pc])
   );
 
-  progressBar.start(laterList.length, 0);
-
-  const processPriceChange = (
-    priceChange: Partial<PriceChange>,
-    existingPriceChange: PriceChange | undefined
+  /**
+   * Processes a single price type (P1 or P2) for a given product.
+   */
+  const processSinglePriceType = (
+    laterPrice: Price,
+    priceType: PriceChangeType,
+    newPrice: number,
+    oldPrice?: number
   ) => {
-    if (existingPriceChange) {
-      updatedPriceChanges.push(priceChange);
-    } else {
-      newPriceChanges.push(priceChange);
+    const existingPriceChange = existingPriceChangeMap.get(
+      `${laterPrice.productId}-${priceType}`
+    );
+    const earlierPrice = earlierPriceMap.get(laterPrice.productId);
+
+    // Determine if a change record should be created
+    const hasPriceChanged = oldPrice !== undefined && newPrice !== oldPrice;
+    const isNewRecord = !earlierPrice || !existingPriceChange;
+
+    if (hasPriceChanged || isNewRecord) {
+      const change = hasPriceChanged ? newPrice - (oldPrice ?? 0) : 0;
+      const percentage =
+        hasPriceChanged && oldPrice && oldPrice > 0 ? change / oldPrice : 0;
+
+      const priceChangeData: Partial<PriceChange> = {
+        productId: laterPrice.productId,
+        priceChange: change,
+        priceChangePercentage: percentage,
+        involvesPromotion: Boolean(laterPrice.isPromoActive),
+        oldPrice: oldPrice ?? newPrice,
+        newprice: newPrice,
+        priceChangeType: priceType,
+      };
+
+      if (existingPriceChange) {
+        updatedPriceChanges.push(priceChangeData);
+      } else {
+        newPriceChanges.push(priceChangeData);
+      }
     }
   };
 
+  progressBar.start(laterList.length, 0);
+
   for (const laterPrice of laterList) {
     const earlierPrice = earlierPriceMap.get(laterPrice.productId);
-    const existingPriceChangeP1 = existingPriceChangeMap.get(
-      `${laterPrice.productId}-P1`
-    );
-    const existingPriceChangeP2 = existingPriceChangeMap.get(
-      `${laterPrice.productId}-P2`
-    );
 
     // P1 (basicPrice) comparison
     if (laterPrice.basicPrice) {
-      if (earlierPrice && laterPrice.basicPrice !== earlierPrice.basicPrice) {
-        const change = laterPrice.basicPrice - earlierPrice.basicPrice;
-        const priceChangeData: Partial<PriceChange> = {
-          productId: laterPrice.productId,
-          priceChange: change,
-          priceChangePercentage:
-            earlierPrice.basicPrice > 0 ? change / earlierPrice.basicPrice : 0,
-          involvesPromotion: Boolean(laterPrice.isPromoActive),
-          oldPrice: earlierPrice.basicPrice,
-          newprice: laterPrice.basicPrice,
-          priceChangeType: "P1",
-        };
-        processPriceChange(priceChangeData, existingPriceChangeP1);
-      } else if (!earlierPrice || !existingPriceChangeP1) {
-        // New product or no existing price change record
-        const priceChangeData: Partial<PriceChange> = {
-          productId: laterPrice.productId,
-          priceChange: 0,
-          priceChangePercentage: 0,
-          involvesPromotion: Boolean(laterPrice.isPromoActive),
-          oldPrice: laterPrice.basicPrice,
-          newprice: laterPrice.basicPrice,
-          priceChangeType: "P1",
-        };
-        processPriceChange(priceChangeData, existingPriceChangeP1);
-      }
+      processSinglePriceType(
+        laterPrice,
+        PriceChangeType.BASIC,
+        laterPrice.basicPrice,
+        earlierPrice?.basicPrice
+      );
     }
 
     // P2 (quantityPrice) comparison
     if (laterPrice.quantityPrice) {
       const oldPriceForP2 =
-        earlierPrice?.quantityPrice || earlierPrice?.basicPrice;
-
-      if (earlierPrice && oldPriceForP2) {
-        if (laterPrice.quantityPrice !== oldPriceForP2) {
-          const change = laterPrice.quantityPrice - oldPriceForP2;
-          const priceChangeData: Partial<PriceChange> = {
-            productId: laterPrice.productId,
-            priceChange: change,
-            priceChangePercentage:
-              oldPriceForP2 > 0 ? change / oldPriceForP2 : 0,
-            involvesPromotion: Boolean(laterPrice.isPromoActive),
-            oldPrice: oldPriceForP2,
-            newprice: laterPrice.quantityPrice,
-            priceChangeType: "P2",
-          };
-          processPriceChange(priceChangeData, existingPriceChangeP2);
-        }
-      } else if (!earlierPrice || !existingPriceChangeP2) {
-        // New product with a P2 price, or no existing price change record
-        const priceChangeData: Partial<PriceChange> = {
-          productId: laterPrice.productId,
-          priceChange: 0,
-          priceChangePercentage: 0,
-          involvesPromotion: Boolean(laterPrice.isPromoActive),
-          oldPrice: laterPrice.quantityPrice,
-          newprice: laterPrice.quantityPrice,
-          priceChangeType: "P2",
-        };
-        processPriceChange(priceChangeData, existingPriceChangeP2);
-      }
+        earlierPrice?.quantityPrice ?? earlierPrice?.basicPrice;
+      processSinglePriceType(
+        laterPrice,
+        PriceChangeType.QUANTITY,
+        laterPrice.quantityPrice,
+        oldPriceForP2
+      );
     }
 
     progressBar.increment();
