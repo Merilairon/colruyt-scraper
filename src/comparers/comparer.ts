@@ -1,5 +1,5 @@
 import { Price } from "../models/Price";
-import { PriceChange } from "../models/PriceChange";
+import { PriceChange } from "../models/PriceChange"; // Assuming PriceChange attributes are defined
 import { SingleBar, Presets } from "cli-progress";
 
 const progressBar = new SingleBar({}, Presets.shades_classic);
@@ -23,58 +23,70 @@ export async function getPriceChange(
   laterList: Price[],
   priceChanges: PriceChange[]
 ): Promise<{
-  updatedPriceChanges: any[];
-  newPriceChanges: any[];
+  updatedPriceChanges: Partial<PriceChange>[];
+  newPriceChanges: Partial<PriceChange>[];
 }> {
   console.log("==========   Comparing Data     ==========");
-  let updatedPriceChanges: any[] = [];
-  let newPriceChanges: any[] = [];
+  const updatedPriceChanges: Partial<PriceChange>[] = [];
+  const newPriceChanges: Partial<PriceChange>[] = [];
+
+  // Create maps for efficient lookups
+  const earlierPriceMap = new Map(
+    earlierList.map((price) => [price.productId, price])
+  );
+  const existingPriceChangeMap = new Map(
+    priceChanges.map((pc) => [`${pc.productId}-${pc.priceChangeType}`, pc])
+  );
 
   progressBar.start(laterList.length, 0);
-  // Compare the two lists of products and return the price difference.
-  laterList.forEach((laterPrice) => {
-    // Find the corresponding product in the earlier list.
-    const earlierPrice = earlierList.find(
-      (earlierPrice) => earlierPrice.productId === laterPrice.productId
-    );
-    const existingPriceChange = priceChanges.find(
-      (pc) => pc.productId === laterPrice.productId
-    );
 
-    // Price changes for P1
-    const processPriceChange = (priceChange: any) => {
-      if (existingPriceChange) {
-        updatedPriceChanges.push(priceChange);
-      } else {
-        newPriceChanges.push(priceChange);
-      }
-    };
+  const processPriceChange = (
+    priceChange: Partial<PriceChange>,
+    existingPriceChange: PriceChange | undefined
+  ) => {
+    if (existingPriceChange) {
+      updatedPriceChanges.push(priceChange);
+    } else {
+      newPriceChanges.push(priceChange);
+    }
+  };
+
+  for (const laterPrice of laterList) {
+    const earlierPrice = earlierPriceMap.get(laterPrice.productId);
+    const existingPriceChangeP1 = existingPriceChangeMap.get(
+      `${laterPrice.productId}-P1`
+    );
+    const existingPriceChangeP2 = existingPriceChangeMap.get(
+      `${laterPrice.productId}-P2`
+    );
 
     // P1 (basicPrice) comparison
     if (laterPrice.basicPrice) {
       if (earlierPrice && laterPrice.basicPrice !== earlierPrice.basicPrice) {
         const change = laterPrice.basicPrice - earlierPrice.basicPrice;
-        processPriceChange({
+        const priceChangeData: Partial<PriceChange> = {
           productId: laterPrice.productId,
           priceChange: change,
           priceChangePercentage:
             earlierPrice.basicPrice > 0 ? change / earlierPrice.basicPrice : 0,
-          involvesPromotion: laterPrice.isPromoActive,
+          involvesPromotion: Boolean(laterPrice.isPromoActive),
           oldPrice: earlierPrice.basicPrice,
           newprice: laterPrice.basicPrice,
           priceChangeType: "P1",
-        });
-      } else if (!earlierPrice || !existingPriceChange) {
+        };
+        processPriceChange(priceChangeData, existingPriceChangeP1);
+      } else if (!earlierPrice || !existingPriceChangeP1) {
         // New product or no existing price change record
-        processPriceChange({
+        const priceChangeData: Partial<PriceChange> = {
           productId: laterPrice.productId,
           priceChange: 0,
           priceChangePercentage: 0,
-          involvesPromotion: laterPrice.isPromoActive,
+          involvesPromotion: Boolean(laterPrice.isPromoActive),
           oldPrice: laterPrice.basicPrice,
           newprice: laterPrice.basicPrice,
           priceChangeType: "P1",
-        });
+        };
+        processPriceChange(priceChangeData, existingPriceChangeP1);
       }
     }
 
@@ -86,33 +98,35 @@ export async function getPriceChange(
       if (earlierPrice && oldPriceForP2) {
         if (laterPrice.quantityPrice !== oldPriceForP2) {
           const change = laterPrice.quantityPrice - oldPriceForP2;
-          processPriceChange({
+          const priceChangeData: Partial<PriceChange> = {
             productId: laterPrice.productId,
             priceChange: change,
             priceChangePercentage:
               oldPriceForP2 > 0 ? change / oldPriceForP2 : 0,
-            involvesPromotion: laterPrice.isPromoActive,
+            involvesPromotion: Boolean(laterPrice.isPromoActive),
             oldPrice: oldPriceForP2,
             newprice: laterPrice.quantityPrice,
             priceChangeType: "P2",
-          });
+          };
+          processPriceChange(priceChangeData, existingPriceChangeP2);
         }
-      } else if (!earlierPrice || !existingPriceChange) {
+      } else if (!earlierPrice || !existingPriceChangeP2) {
         // New product with a P2 price, or no existing price change record
-        processPriceChange({
+        const priceChangeData: Partial<PriceChange> = {
           productId: laterPrice.productId,
           priceChange: 0,
           priceChangePercentage: 0,
-          involvesPromotion: laterPrice.isPromoActive,
+          involvesPromotion: Boolean(laterPrice.isPromoActive),
           oldPrice: laterPrice.quantityPrice,
           newprice: laterPrice.quantityPrice,
           priceChangeType: "P2",
-        });
+        };
+        processPriceChange(priceChangeData, existingPriceChangeP2);
       }
     }
 
     progressBar.increment();
-  });
+  }
   progressBar.stop();
   console.log("==========   Done Comparing     ==========");
 
