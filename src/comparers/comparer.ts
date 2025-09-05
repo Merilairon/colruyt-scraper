@@ -57,7 +57,7 @@ export async function getPriceChange(
     const isNewRecord = !earlierPrice || !existingPriceChange;
 
     if (hasPriceChanged || isNewRecord) {
-      const change = hasPriceChanged ? newPrice - (oldPrice ?? 0) : 0;
+      const change = hasPriceChanged ? newPrice - (oldPrice ?? newPrice) : 0;
       const percentage =
         hasPriceChanged && oldPrice && oldPrice > 0 ? change / oldPrice : 0;
 

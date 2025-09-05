@@ -46,6 +46,41 @@ paths:
         "500":
           description: Internal server error
 
+  /api/products/changes:
+    get:
+      summary: Get products with the most significant price decreases
+      description: Retrieve a list of products with the most significant price decreases, sorted by the percentage drop.
+      tags: [Products]
+      parameters:
+        - in: query
+          name: size
+          schema:
+            type: integer
+            default: 10
+          description: The number of products per page.
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: The page number to retrieve.
+        - in: query
+          name: percentage
+          schema:
+            type: number
+            format: float
+            default: 0
+          description: The percentage to compare against. Only products with a price change percentage less than this value will be returned (e.g., use -10 for a 10% drop).
+      responses:
+        "200":
+          description: A paginated list of products with the best price drops.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedProducts"
+        "500":
+          description: Internal server error
+
   /api/products/{productId}:
     get:
       summary: Retrieve a single product by its ID
@@ -224,7 +259,9 @@ components:
           items:
             $ref: "#/components/schemas/Price"
         priceChange:
-          $ref: "#/components/schemas/PriceChange"
+          type: array
+          items:
+            $ref: "#/components/schemas/PriceChange"
     PaginatedProducts:
       type: object
       properties:

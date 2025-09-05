@@ -9,10 +9,70 @@ import { Product } from "../models/Product";
 import { get, put } from "memory-cache";
 import { Price } from "../models/Price";
 import { Op } from "sequelize";
-import { PriceChange } from "../models/PriceChange";
+import { PriceChange, PriceChangeType } from "../models/PriceChange";
 import Fuse from "fuse.js";
 
 const router = Router();
+
+/**
+ * Route to get products with the most significant price decreases.
+ * @name GET /changes
+ * @param {number} [size=10] - The number of products per page.
+ * @param {number} [page=1] - The page number to retrieve.
+ * @param {float} [percentage=0] - The percentage to compare against
+ * @returns {Object} An object containing the page number, page size, total number of products, and the list of products with the best price drops.
+ */
+router.get("/changes", async (req, res) => {
+  const { size = 10, page = 1, percentage = 0 } = req.query;
+  const pageSize = parseInt(size as string);
+  const pageNumber = parseInt(page as string);
+  const percentageValue = parseFloat(percentage as string) / 100;
+
+  const allProducts = await getAllProducts();
+
+  // Filter and sort in one pass if possible, or optimize the filtering logic.
+  // Create a map for quick lookup of basic price changes to avoid repeated `find` calls.
+  const productPriceChangeMap = new Map<string, PriceChange | undefined>();
+  allProducts.forEach((p) => {
+    productPriceChangeMap.set(
+      p.productId,
+      p.priceChanges?.find((pc) => pc.priceChangeType === PriceChangeType.BASIC)
+    );
+  });
+
+  const productsWithDecreases = allProducts
+    .filter((p: Product) => {
+      const priceChangeP1 = productPriceChangeMap.get(p.productId);
+      // Ensure priceChangeP1 exists and its percentage is less than the threshold
+      return (
+        priceChangeP1 && priceChangeP1.priceChangePercentage < percentageValue
+      );
+    })
+    .sort((a, b) => {
+      // Retrieve pre-fetched price changes from the map
+      const aPriceChangeP1 = productPriceChangeMap.get(a.productId);
+      const bPriceChangeP1 = productPriceChangeMap.get(b.productId);
+
+      // This sort assumes aPriceChangeP1 and bPriceChangeP1 will always exist due to the filter.
+      // If there's any chance they might not, add null/undefined checks.
+      return (
+        (aPriceChangeP1?.priceChangePercentage || 0) -
+        (bPriceChangeP1?.priceChangePercentage || 0)
+      );
+    });
+
+  const paginatedProducts = productsWithDecreases.slice(
+    (pageNumber - 1) * pageSize,
+    pageNumber * pageSize
+  );
+
+  res.json({
+    page: pageNumber,
+    size: pageSize,
+    total: productsWithDecreases.length,
+    products: paginatedProducts,
+  });
+});
 
 /**
  * Route to get all products in a collection with pagination, availability filter, and favourites filter.
@@ -75,8 +135,6 @@ router.get("/", async (req, res) => {
   });
 });
 
-//TODO: add interesting changes to the product route
-
 /**
  * Route to fetch a product by its ID.
  * @name GET /:productId
@@ -111,6 +169,7 @@ async function getAllProducts(): Promise<Product[]> {
         },
         {
           model: PriceChange,
+          as: "priceChanges",
         },
       ],
       order: [[Price, "date", "DESC"]],

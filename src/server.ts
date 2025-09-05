@@ -58,18 +58,18 @@ app.listen(port, () => {
 });
 
 async function scrapeAndCompare() {
-  scraper()
-    .then(comparer)
-    .catch((e) => console.error(e.message));
+  scraper().then(comparer);
 }
 
-const now = new Date();
-const hours = now.getHours();
-
-// if (hours > 9) {
-//   console.log("Started after CRON, starting scraper");
-scrapeAndCompare();
-// }
+if (process.env.START_MODE === "SCRAPE") {
+  console.log("Starting in scrape mode, starting scraper and comparer");
+  scrapeAndCompare().catch((e) => console.error(e.message));
+} else if (process.env.START_MODE === "COMPARE") {
+  console.log("Starting in compare mode, starting comparer");
+  comparer().catch((e) => console.error(e.message));
+} else {
+  console.log("Starting in normal mode");
+}
 
 cron.schedule("0 6 * * *", async () => {
   try {

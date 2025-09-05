@@ -46,5 +46,5 @@ PriceChange.init(
   }
 );
 
-Product.hasMany(PriceChange, { foreignKey: "productId" });
+Product.hasMany(PriceChange, { foreignKey: "productId", as: "priceChanges" });
 PriceChange.belongsTo(Product, { foreignKey: "productId" });
