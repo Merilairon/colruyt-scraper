@@ -139,6 +139,7 @@ async function getAllPromotions(): Promise<Promotion[]> {
             },
             {
               model: PriceChange,
+              as: "priceChanges",
             },
           ],
           through: { attributes: [] },
