@@ -71,7 +71,7 @@ if (process.env.START_MODE === "SCRAPE") {
   console.log("Starting in normal mode");
 }
 
-cron.schedule("0 6 * * *", async () => {
+cron.schedule("0 8 * * *", async () => {
   try {
     await scrapeAndCompare();
   } catch (e) {
