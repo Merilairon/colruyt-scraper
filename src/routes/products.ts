@@ -6,11 +6,11 @@
 
 import { Router } from "express";
 import { Product } from "../models/Product";
-import { get, put } from "memory-cache";
 import { Price } from "../models/Price";
 import { Op } from "sequelize";
 import { PriceChange, PriceChangeType } from "../models/PriceChange";
 import Fuse from "fuse.js";
+import { get } from "../utils/cache";
 
 const router = Router();
 
@@ -152,30 +152,7 @@ router.get("/:productId", async (req, res) => {
  * @returns {Promise<Product[]>} A promise that resolves to an array of all products.
  */
 async function getAllProducts(): Promise<Product[]> {
-  let products: Product[] | undefined = get("products");
-  if (!products) {
-    products = await Product.findAll({
-      include: [
-        {
-          model: Price,
-          where: {
-            date: {
-              [Op.gte]: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
-            }, //Only get products with a price
-            basicPrice: {
-              [Op.not]: null,
-            },
-          },
-        },
-        {
-          model: PriceChange,
-          as: "priceChanges",
-        },
-      ],
-      order: [[Price, "date", "DESC"]],
-    });
-    put("products", products, 3600000);
-  }
+  let products: Product[] | undefined = (await get("products")) as Product[];
   return products;
 }
 

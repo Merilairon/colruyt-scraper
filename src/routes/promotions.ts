@@ -5,13 +5,13 @@
 
 import { Router } from "express";
 import { Product } from "../models/Product";
-import { get, put } from "memory-cache";
 import { Promotion } from "../models/Promotion";
 import { Benefit } from "../models/Benefit";
 import { Op } from "sequelize";
 import { PromotionText } from "../models/PromotionText";
 import { Price } from "../models/Price";
 import { PriceChange } from "../models/PriceChange";
+import { get } from "../utils/cache";
 
 const router = Router();
 
@@ -107,51 +107,9 @@ router.get("/", async (req, res) => {
  * @returns {Promise<Promotion[]>} A promise that resolves to an array of promotions.
  */
 async function getAllPromotions(): Promise<Promotion[]> {
-  let promotions = get("promotions");
-  if (!promotions) {
-    promotions = await Promotion.findAll({
-      include: [
-        {
-          model: Benefit,
-          order: [
-            ["benefitAmount", "asc"],
-            ["benefitPercentage", "asc"],
-            ["minLimit", "asc"],
-          ],
-        },
-        PromotionText,
-        {
-          model: Product,
-          as: "products",
-          include: [
-            {
-              model: Price,
-              where: {
-                date: {
-                  //Only get products with a price
-                  [Op.gte]: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
-                },
-                basicPrice: {
-                  [Op.not]: null,
-                },
-              },
-              order: [["date", "DESC"]],
-            },
-            {
-              model: PriceChange,
-              as: "priceChanges",
-            },
-          ],
-          through: { attributes: [] },
-        },
-      ],
-      where: { linkedTechnicalArticleNumber: { [Op.not]: null } },
-    });
-    promotions = promotions.filter(
-      (promotion: Promotion) => promotion.products.length > 0
-    );
-    put("promotions", promotions, 3600000);
-  }
+  let promotions: Promotion[] | undefined = (await get(
+    "promotions"
+  )) as Promotion[];
   return promotions;
 }
 
