@@ -65,12 +65,19 @@ paths:
             default: 1
           description: The page number to retrieve.
         - in: query
-          name: percentage
+          name: fromPerc
+          schema:
+            type: number
+            format: float
+            default: -1000
+          description: The percentage to compare from. Only products with a price change percentage higher than this value will be returned (e.g., use -10 for a 10% drop).
+        - in: query
+          name: toPerc
           schema:
             type: number
             format: float
             default: 0
-          description: The percentage to compare against. Only products with a price change percentage less than this value will be returned (e.g., use -10 for a 10% drop).
+          description: The percentage to compare to. Only products with a price change percentage less than this value will be returned (e.g., use -10 for a 10% drop).
       responses:
         "200":
           description: A paginated list of products with the best price drops.

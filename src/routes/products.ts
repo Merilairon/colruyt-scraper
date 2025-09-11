@@ -19,14 +19,16 @@ const router = Router();
  * @name GET /changes
  * @param {number} [size=10] - The number of products per page.
  * @param {number} [page=1] - The page number to retrieve.
- * @param {float} [percentage=0] - The percentage to compare against
+ * @param {float} [fromPerc=-1000] - The percentage to compare from
+ * @param {float} [toPerc=0] - The percentage to compare to
  * @returns {Object} An object containing the page number, page size, total number of products, and the list of products with the best price drops.
  */
 router.get("/changes", async (req, res) => {
-  const { size = 10, page = 1, percentage = 0 } = req.query;
+  const { size = 10, page = 1, fromPerc = -1000, toPerc = 0 } = req.query;
   const pageSize = parseInt(size as string);
   const pageNumber = parseInt(page as string);
-  const percentageValue = parseFloat(percentage as string) / 100;
+  const fromPercValue = parseFloat(fromPerc as string) / 100;
+  const toPercValue = parseFloat(toPerc as string) / 100;
 
   const allProducts = await getAllProducts();
 
@@ -45,7 +47,9 @@ router.get("/changes", async (req, res) => {
       const priceChangeP1 = productPriceChangeMap.get(p.productId);
       // Ensure priceChangeP1 exists and its percentage is less than the threshold
       return (
-        priceChangeP1 && priceChangeP1.priceChangePercentage < percentageValue
+        priceChangeP1 &&
+        priceChangeP1.priceChangePercentage < toPercValue &&
+        priceChangeP1.priceChangePercentage > fromPercValue
       );
     })
     .sort((a, b) => {
