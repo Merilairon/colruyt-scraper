@@ -55,8 +55,8 @@ router.get("/", async (req, res) => {
 
   const allPromotions = await getAllPromotions();
 
-  const filteredPromotions = allPromotions.sort(
-    (a: Promotion, b: Promotion) => {
+  const filteredPromotions =
+    allPromotions?.sort((a: Promotion, b: Promotion) => {
       // If a promotion has no benefits, it should come last
       if (a.benefits === undefined || a.benefits.length === 0) {
         return -1;
@@ -84,8 +84,7 @@ router.get("/", async (req, res) => {
       } else {
         return 0;
       }
-    }
-  );
+    }) || [];
 
   const paginatedPromotions = filteredPromotions.slice(
     (pageNumber - 1) * pageSize,
@@ -110,7 +109,7 @@ async function getAllPromotions(): Promise<Promotion[]> {
   let promotions: Promotion[] | undefined = (await get(
     "promotions"
   )) as Promotion[];
-  return promotions;
+  return promotions || [];
 }
 
 /**

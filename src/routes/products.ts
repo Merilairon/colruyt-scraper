@@ -111,15 +111,18 @@ router.get("/", async (req, res) => {
         keys: ["LongName", "ShortName", "brand"],
       };
       const fuse = new Fuse(allProducts, fuseOptions);
-      productsToFilter = fuse.search(searchQuery).map((result) => result.item);
+      productsToFilter = await fuse
+        .search(searchQuery)
+        .map((result) => result.item);
     }
 
     // Filter by availability
-    filteredProducts = productsToFilter.filter(
-      (product) =>
-        isAvailable === undefined ||
-        product.isAvailable === (isAvailable === "true")
-    );
+    filteredProducts =
+      productsToFilter?.filter(
+        (product) =>
+          isAvailable === undefined ||
+          product.isAvailable === (isAvailable === "true")
+      ) || [];
   }
 
   const paginatedProducts = filteredProducts.slice(
@@ -153,7 +156,7 @@ router.get("/:productId", async (req, res) => {
  */
 async function getAllProducts(): Promise<Product[]> {
   let products: Product[] | undefined = (await get("products")) as Product[];
-  return products;
+  return products || [];
 }
 
 /**
