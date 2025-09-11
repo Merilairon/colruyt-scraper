@@ -110,6 +110,28 @@ async function handleStaleData(
   } else {
     console.log("No stale promotions found.");
   }
+
+  // 3. Handle stale prices (older than 90 days)
+  const XDaysAgo = new Date();
+  XDaysAgo.setDate(
+    XDaysAgo.getDate() -
+      (Number.parseInt(process.env.AMOUNT_OF_DAYS_KEPT) || 90)
+  );
+
+  const oldPricesCount = await Price.destroy({
+    where: {
+      date: {
+        [Op.lt]: XDaysAgo,
+      },
+    },
+    transaction,
+  });
+
+  if (oldPricesCount > 0) {
+    console.log(`Removed ${oldPricesCount} prices older than 90 days.`);
+  } else {
+    console.log("No old prices to remove.");
+  }
 }
 
 /**

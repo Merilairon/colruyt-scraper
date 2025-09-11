@@ -3,7 +3,10 @@ import { RequestHandler } from "../utils/RequestHandler";
 import { SingleBar, Presets } from "cli-progress";
 const requestHandler = RequestHandler.instance;
 
-const progressBar = new SingleBar({}, Presets.shades_classic);
+const progressBar = new SingleBar(
+  { hideCursor: true, autopadding: true },
+  Presets.shades_classic
+);
 
 /**
  * Retrieves all products by fetching them in pages.

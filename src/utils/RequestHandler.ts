@@ -98,11 +98,13 @@ export class RequestHandler {
       params, // Include the specified query parameters.
     };
 
-    let count = 0;
+    let attempt = 0;
+    const retryableStatusCodes = [408, 500, 502, 503, 504];
+
     while (true) {
       try {
         if (process.env.ENABLE_PROXY) {
-          let agent =
+          const agent =
             this.agents[Math.floor(Math.random() * this.agents.length)];
 
           options = {
@@ -116,13 +118,33 @@ export class RequestHandler {
         // Return the response data.
         return response.data;
       } catch (error) {
-        // Retry the request if the error is a timeout.
-        if (++count == this.maxTries) {
-          console.warn(`Error on count: (${count})`);
+        attempt++;
+        if (attempt >= this.maxTries) {
+          console.error(
+            `Request failed after ${this.maxTries} attempts.`,
+            error.message
+          );
           throw error;
         }
-        if (error?.status === 408) await delay(5000);
-        console.warn(`Retrying request... (${count})`);
+
+        const axiosError = error as AxiosError;
+        const isRetryable =
+          (axiosError.response &&
+            retryableStatusCodes.includes(axiosError.response.status)) ||
+          axiosError.code === "ECONNABORTED";
+
+        if (isRetryable) {
+          const delayTime = Math.pow(2, attempt) * 1000 + Math.random() * 1000; // Exponential backoff with jitter
+          console.warn(
+            `Attempt ${attempt}: Request failed with ${
+              axiosError.response?.status || axiosError.code
+            }. Retrying in ${Math.round(delayTime / 1000)}s...`
+          );
+          await delay(delayTime);
+        } else {
+          // Non-retryable error
+          throw error;
+        }
       }
     }
   }

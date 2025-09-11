@@ -6,6 +6,7 @@ import swaggerJsdoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
 import cors from "cors";
 import cron from "node-cron";
+import { styleText } from "node:util";
 
 import { scraper } from "./scraper";
 import { comparer } from "./comparer";
@@ -58,6 +59,12 @@ app.listen(port, () => {
 });
 
 async function scrapeAndCompare() {
+  console.log(
+    styleText(
+      "blue",
+      "==========     " + new Date().toLocaleString() + "     =========="
+    )
+  );
   scraper().then(comparer);
 }
 
