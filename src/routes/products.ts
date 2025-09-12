@@ -89,7 +89,14 @@ router.get("/changes", async (req, res) => {
  * @returns {Object} An object containing the page number, page size, total number of products, and the list of products.
  */
 router.get("/", async (req, res) => {
-  const { size = 50, page = 1, isAvailable, search, favourites } = req.query;
+  const {
+    size = 50,
+    page = 1,
+    isAvailable,
+    search,
+    favourites,
+    sort = "desc",
+  } = req.query;
   const pageSize = parseInt(size as string, 10);
   const pageNumber = parseInt(page as string, 10);
   const searchQuery = search as string;
@@ -128,6 +135,29 @@ router.get("/", async (req, res) => {
           product.isAvailable === (isAvailable === "true")
       ) || [];
   }
+
+  // Filter and sort in one pass if possible, or optimize the filtering logic.
+  // Create a map for quick lookup of basic price changes to avoid repeated `find` calls.
+  const productPriceChangeMap = new Map<string, PriceChange | undefined>();
+  filteredProducts.forEach((p) => {
+    productPriceChangeMap.set(
+      p.productId,
+      p.priceChanges?.find((pc) => pc.priceChangeType === PriceChangeType.BASIC)
+    );
+  });
+
+  filteredProducts = filteredProducts.sort((a, b) => {
+    // Retrieve pre-fetched price changes from the map
+    const aPriceChangeP1 = productPriceChangeMap.get(a.productId);
+    const bPriceChangeP1 = productPriceChangeMap.get(b.productId);
+
+    // This sort assumes aPriceChangeP1 and bPriceChangeP1 will always exist due to the filter.
+    // If there's any chance they might not, add null/undefined checks.
+    return (
+      (aPriceChangeP1?.priceChangePercentage || 0) -
+      (bPriceChangeP1?.priceChangePercentage || 0)
+    );
+  });
 
   const paginatedProducts = filteredProducts.slice(
     (pageNumber - 1) * pageSize,
