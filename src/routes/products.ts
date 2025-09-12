@@ -153,10 +153,10 @@ router.get("/", async (req, res) => {
 
     // This sort assumes aPriceChangeP1 and bPriceChangeP1 will always exist due to the filter.
     // If there's any chance they might not, add null/undefined checks.
-    return (
-      (aPriceChangeP1?.priceChangePercentage || 0) -
-      (bPriceChangeP1?.priceChangePercentage || 0)
-    );
+    const aVal = aPriceChangeP1?.priceChangePercentage || 0;
+    const bVal = bPriceChangeP1?.priceChangePercentage || 0;
+
+    return sort === "asc" ? aVal - bVal : bVal - aVal;
   });
 
   const paginatedProducts = filteredProducts.slice(
