@@ -85,6 +85,11 @@ async function getAllProducts(): Promise<Product[]> {
         model: PriceChange,
         as: "priceChanges",
       },
+      {
+        model: Promotion,
+        as: "promotions",
+        through: { attributes: [] },
+      },
     ],
     order: [[Price, "date", "DESC"]],
   });
