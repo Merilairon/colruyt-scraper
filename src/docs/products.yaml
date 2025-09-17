@@ -269,6 +269,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PriceChange"
+        promotions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Promotion"
     PaginatedProducts:
       type: object
       properties:
