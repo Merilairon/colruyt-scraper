@@ -6,41 +6,61 @@ import { Benefit } from "../models/Benefit";
 import { Promotion } from "../models/Promotion";
 import { PromotionText } from "../models/PromotionText";
 import QuickLRU from "quick-lru";
+import cron from "node-cron";
+
+type CacheKey = "products" | "promotions";
+type CacheValue = Product[] | Promotion[];
 
 const memCache = new QuickLRU({
-  maxAge: 3600000,
-  maxSize: 100,
-  onEviction: refreshCache,
+  maxSize: 10, // We only have a few keys like 'products' and 'promotions'
 });
 
-export async function get(
-  key: string
-): Promise<Product[] | Promotion[] | null> {
-  return (await memCache.get(key)) as Product[] | Promotion[] | null;
-}
-export async function put(
-  key: string,
-  val: any
-): Promise<Product[] | Promotion[] | null> {
-  return (await memCache.set(key, val)) as unknown as
-    | Product[]
-    | Promotion[]
-    | null;
+/**
+ * Retrieves a value from the cache. If the value is not present,
+ * it fetches it from the database, caches it, and returns it.
+ * @param key The key to retrieve from the cache ('products' or 'promotions').
+ * @returns The cached or freshly fetched data.
+ */
+export async function get(key: CacheKey): Promise<CacheValue> {
+  if (!memCache.has(key)) {
+    console.log(`Cache miss for key: ${key}. Fetching from DB.`);
+    await refreshCache(key);
+  }
+  return (memCache.get(key) as CacheValue) || [];
 }
 
-async function refreshCache(key, value = null) {
+/**
+ * Stores a value in the cache.
+ * @param key The key to store the value under.
+ * @param val The value to store.
+ */
+export function put(key: CacheKey, val: CacheValue): void {
+  memCache.set(key, val);
+}
+
+/**
+ * Refreshes the cache for a given key by fetching data from the database.
+ * @param key The cache key to refresh.
+ */
+async function refreshCache(key: CacheKey) {
+  console.log(`Refreshing cache for key: ${key}`);
   switch (key) {
     case "products":
-      await put("products", await getAllProducts());
+      put("products", await getAllProducts());
       break;
     case "promotions":
-      await put("promotions", await getAllPromotions());
+      put("promotions", await getAllPromotions());
       break;
   }
 }
 
-refreshCache("products");
-refreshCache("promotions"); //Refresh at startup
+// Schedule a daily cache refresh at 6:05 AM.
+cron.schedule("10 8 * * *", async () => {
+  console.log("Running scheduled cache refresh at 8:05 AM...");
+  await refreshCache("products");
+  await refreshCache("promotions");
+  console.log("Scheduled cache refresh finished.");
+});
 
 /**
  * Retrieves all products from the database.
