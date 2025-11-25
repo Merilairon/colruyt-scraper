@@ -9,6 +9,7 @@ import { Benefit } from "./models/Benefit";
 import { PromotionProduct } from "./models/PromotionProduct";
 import { PromotionText } from "./models/PromotionText";
 import { Op, Transaction } from "sequelize";
+import { PriceChange, PriceChangeType } from "./models/PriceChange";
 
 /**
  * Connects to the database and syncs the models.
@@ -111,7 +112,64 @@ async function handleStaleData(
     console.log("No stale promotions found.");
   }
 
-  // 3. Handle stale prices (older than 90 days)
+  // 3. Handle stale prices (older than 90 days) and reset price change if no price change has occurred in the past 30 days
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  // Find PriceChange records for products that have NOT had a price update in the last 30 days.
+  // We use a subquery for this, which is more robust than a complex join with HAVING.
+  const stalePriceChanges = await PriceChange.findAll({
+    where: {
+      productId: {
+        [Op.notIn]: sequelize.literal(
+          `(SELECT "productId" FROM "prices" WHERE "date" >= '${thirtyDaysAgo.toISOString()}')`
+        ),
+      },
+    },
+    transaction,
+  });
+
+  if (stalePriceChanges.length > 0) {
+    const priceChangesToReset = stalePriceChanges
+      .filter((pc) => pc.priceChangeType !== PriceChangeType.QUANTITY)
+      .map((pc) => pc.pricechangeId);
+
+    const priceChangesToRemove = stalePriceChanges
+      .filter((pc) => pc.priceChangeType === PriceChangeType.QUANTITY)
+      .map((pc) => pc.pricechangeId);
+
+    console.log(
+      `Found ${stalePriceChanges.length} price changes for products with no recent price updates.`
+    );
+
+    if (priceChangesToReset.length > 0) {
+      console.log(`Resetting ${priceChangesToReset.length} P1 price changes.`);
+      await PriceChange.update(
+        { priceChange: 0, priceChangePercentage: 0 },
+        {
+          where: { pricechangeId: { [Op.in]: priceChangesToReset } },
+          transaction,
+        }
+      );
+    }
+
+    if (priceChangesToRemove.length > 0) {
+      console.log(
+        `Removing ${priceChangesToRemove.length} stale P2 price changes.`
+      );
+      await PriceChange.destroy({
+        where: {
+          pricechangeId: {
+            [Op.in]: priceChangesToRemove,
+          },
+        },
+        transaction,
+      });
+    }
+  } else {
+    console.log("No stale price changes to reset.");
+  }
+
   const XDaysAgo = new Date();
   XDaysAgo.setDate(
     XDaysAgo.getDate() -
