@@ -46,5 +46,15 @@
     "nodemon": "^3.1.14",
     "typescript": "^5.9.3"
   },
-  "packageManager": "pnpm@9.1.1+sha512.14e915759c11f77eac07faba4d019c193ec8637229e62ec99eefb7cf3c3b75c64447882b7c485142451ee3a6b408059cdfb7b7fa0341b975f12d0f7629c71195"
+  "packageManager": "pnpm@9.1.1+sha512.14e915759c11f77eac07faba4d019c193ec8637229e62ec99eefb7cf3c3b75c64447882b7c485142451ee3a6b408059cdfb7b7fa0341b975f12d0f7629c71195",
+  "pnpm": {
+    "overrides": {
+      "lodash@>=4.0.0 <=4.17.23": "4.18.1",
+      "minimatch@<3.1.4": "3.1.5",
+      "path-to-regexp@<0.1.13": "0.1.13",
+      "picomatch@<2.3.2": "2.3.2",
+      "underscore@<=1.13.7": "1.13.8",
+      "validator@<13.15.22": "13.15.35"
+    }
+  }
 }
