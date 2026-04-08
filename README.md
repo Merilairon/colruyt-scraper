@@ -107,12 +107,13 @@ The API server starts on port `3000` by default (override with the `PORT` enviro
 
 Control the service behaviour via the `START_MODE` variable in `.env`:
 
-| `START_MODE` | Behaviour                                                                   |
-| ------------ | --------------------------------------------------------------------------- |
-| *(empty)*    | Start the API server only; the cron job runs the scraper daily at 08:00   |
-| `SCRAPE`     | Immediately run the scraper and price comparer, then start the server      |
-| `COMPARE`    | Immediately run the price comparer only, then start the server              |
+| `START_MODE` | Behaviour                                                                                           |
+| ------------ | --------------------------------------------------------------------------------------------------- |
+| *(empty)*    | Start the API server; the daily cron remains enabled and runs `scrapeAndCompare()` at 08:00        |
+| `SCRAPE`     | Start the API server, immediately run the scraper + price comparer, and keep the daily cron enabled |
+| `COMPARE`    | Start the API server, immediately run the price comparer only, and keep the daily cron enabled      |
 
+Note: the scheduled daily cron job runs `scrapeAndCompare()` in all modes, including `START_MODE=COMPARE`.
 ---
 
 ## API Reference
