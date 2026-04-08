@@ -126,12 +126,15 @@ http://localhost:3000/api/docs
 
 ### Endpoints
 
-| Method | Path              | Description                        |
-| ------ | ----------------- | ---------------------------------- |
-| `GET`  | `/api/products`   | List all scraped products          |
-| `GET`  | `/api/promotions` | List all active promotions         |
+| Method | Path                         | Description                               |
+| ------ | ---------------------------- | ----------------------------------------- |
+| `GET`  | `/api/products`              | List all scraped products                 |
+| `GET`  | `/api/products/changes`      | List detected product price changes       |
+| `GET`  | `/api/products/:productId`   | Get a single scraped product by ID        |
+| `GET`  | `/api/promotions`            | List all active promotions                |
+| `GET`  | `/api/promotions/:promotionId` | Get a single promotion by ID            |
 
-All other paths return `404 Not Found`.
+Paths not handled by the API return `404 Not Found`.
 
 ---
 
