@@ -7,7 +7,23 @@
     "dev": "nodemon",
     "debug": "npm run build && npm run start",
     "build": "tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "test": "jest --forceExit"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/__tests__/**/*.test.ts"
+    ],
+    "moduleFileExtensions": [
+      "ts",
+      "js",
+      "json"
+    ],
+    "transform": {
+      "^.+\\.ts$": ["ts-jest", { "tsconfig": { "module": "commonjs" } }]
+    }
   },
   "scarfSettings": {
     "enabled": false
@@ -37,13 +53,18 @@
   "devDependencies": {
     "@types/cli-progress": "^3.11.6",
     "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
     "@types/memory-cache": "^0.2.6",
     "@types/node": "^22.17.1",
     "@types/node-cron": "^3.0.11",
     "@types/quick-lru": "^2.0.0",
+    "@types/supertest": "^7.2.0",
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.8",
+    "jest": "^30.3.0",
     "nodemon": "^3.1.14",
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.9",
     "typescript": "^5.9.3"
   },
   "packageManager": "pnpm@9.1.1+sha512.14e915759c11f77eac07faba4d019c193ec8637229e62ec99eefb7cf3c3b75c64447882b7c485142451ee3a6b408059cdfb7b7fa0341b975f12d0f7629c71195"
