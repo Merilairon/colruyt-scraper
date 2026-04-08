@@ -6,6 +6,7 @@
     "sourceMap": true,
     "outDir": "dist",
     "lib": ["es2021", "dom"],
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true
   }
 }
