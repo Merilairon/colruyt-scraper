@@ -71,7 +71,7 @@ All configuration is done via environment variables. Create a `.env` file in the
 | Variable              | Description                                                                                     |
 | --------------------- | ----------------------------------------------------------------------------------------------- |
 | `PROXY_ENDPOINT`      | Proxy server URL (e.g. `http://user:pass@host:port`)                                            |
-| `ENABLE_PROXY`        | Set to `true` to route requests through the proxy                                               |
+| `ENABLE_PROXY`        | Enable proxy routing when set to any non-empty value; leave empty or unset to disable          |
 | `HOST_URL`            | Base URL of the Colruyt website                                                                 |
 | `API_HOST_URL`        | Base URL for the Colruyt API host                                                               |
 | `API_URL`             | Endpoint for general product/price API calls                                                    |
