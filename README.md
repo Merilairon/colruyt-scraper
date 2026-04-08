@@ -92,7 +92,7 @@ All configuration is done via environment variables. Create a `.env` file in the
 pnpm dev
 ```
 
-Nodemon watches `src/` for changes, rebuilds, and restarts the server automatically.
+Nodemon watches `src/` and `prisma/` for changes, then runs the build and start scripts automatically.
 
 ### Production
 
