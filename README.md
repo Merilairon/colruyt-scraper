@@ -25,7 +25,7 @@ A Node.js/TypeScript service that scrapes product prices and promotions from the
 - REST API endpoints for products and promotions
 - Interactive Swagger UI at `/api/docs`
 - Daily cron job (runs at 08:00) to keep data up to date
-- Configurable start modes: normal API server, scrape-only, or compare-only
+- Configurable start modes: API server, scrape+compare, or compare-only-at-startup
 
 ---
 
