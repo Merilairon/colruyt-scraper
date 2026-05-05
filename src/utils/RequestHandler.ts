@@ -4,12 +4,37 @@ import { SocksProxyAgent } from "socks-proxy-agent";
 import { Agent } from "node:https";
 import { delay } from "./delay";
 
+function createConcurrencyLimiter(maxConcurrent: number) {
+  let running = 0;
+  const queue: (() => void)[] = [];
+  return function limit<T>(fn: () => Promise<T>): Promise<T> {
+    return new Promise((resolve, reject) => {
+      const run = () => {
+        running++;
+        fn()
+          .then(resolve, reject)
+          .finally(() => {
+            running--;
+            if (queue.length > 0) queue.shift()!();
+          });
+      };
+      if (running < maxConcurrent) run();
+      else queue.push(run);
+    });
+  };
+}
+
 export class RequestHandler {
   static #instance: RequestHandler;
   tunnelTimeout = 30000; // 30 seconds
   api_key;
   agents: Agent[] = [];
   maxTries = 10;
+  concurrencyLimit = Number(process.env.MAX_CONCURRENT_REQUESTS) || 5;
+  minDelayMs = Number(process.env.REQUEST_DELAY_MS) || 200;
+  #limiter = createConcurrencyLimiter(
+    Number(process.env.MAX_CONCURRENT_REQUESTS) || 5,
+  );
 
   private constructor() {
     if (process.env.ENABLE_PROXY) {
@@ -81,7 +106,18 @@ export class RequestHandler {
     url: string,
     headers: any = {},
     params: any = {},
-    withoutApiKey = false
+    withoutApiKey = false,
+  ): Promise<any> {
+    return this.#limiter(() =>
+      this.#doRequest(url, headers, params, withoutApiKey),
+    );
+  }
+
+  async #doRequest(
+    url: string,
+    headers: any = {},
+    params: any = {},
+    withoutApiKey = false,
   ): Promise<any> {
     if (!withoutApiKey) {
       headers["X-Cg-Apikey"] = await this.getApiKey();
@@ -92,6 +128,8 @@ export class RequestHandler {
         ? process.env.HOST_URL
         : process.env.API_HOST_URL; // Set the host URL in the request header.
 
+    await delay(this.minDelayMs + Math.random() * this.minDelayMs);
+
     let options: any = {
       timeout: this.tunnelTimeout, // Set the request timeout.
       headers, // Include the specified headers.
@@ -99,7 +137,7 @@ export class RequestHandler {
     };
 
     let attempt = 0;
-    const retryableStatusCodes = [408, 500, 502, 503, 504];
+    const retryableStatusCodes = [408, 429, 500, 502, 503, 504];
 
     while (true) {
       try {
@@ -122,7 +160,7 @@ export class RequestHandler {
         if (attempt >= this.maxTries) {
           console.error(
             `Request failed after ${this.maxTries} attempts.`,
-            error.message
+            error.message,
           );
           throw error;
         }
@@ -138,7 +176,7 @@ export class RequestHandler {
           console.warn(
             `Attempt ${attempt}: Request failed with ${
               axiosError.response?.status || axiosError.code
-            }. Retrying in ${Math.round(delayTime / 1000)}s...`
+            }. Retrying in ${Math.round(delayTime / 1000)}s...`,
           );
           await delay(delayTime);
         } else {

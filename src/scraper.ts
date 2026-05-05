@@ -29,7 +29,7 @@ async function saveProducts(apiProducts: any[], transaction: Transaction) {
 
   // De-duplicate products by productId to prevent "ON CONFLICT" errors.
   const uniqueProducts = Array.from(
-    new Map(apiProducts.map((p) => [p.productId, p])).values()
+    new Map(apiProducts.map((p) => [p.productId, p])).values(),
   );
 
   // Upsert products to handle new and updated ones.
@@ -43,7 +43,7 @@ async function saveProducts(apiProducts: any[], transaction: Transaction) {
       productId: p.productId,
       ...p.price,
     })),
-    { ignoreDuplicates: true, transaction } // Ignore if a price for this product on this day already exists.
+    { ignoreDuplicates: true, transaction }, // Ignore if a price for this product on this day already exists.
   );
 }
 
@@ -56,7 +56,7 @@ async function saveProducts(apiProducts: any[], transaction: Transaction) {
 async function handleStaleData(
   apiProducts: any[],
   apiPromotions: any[],
-  transaction: Transaction
+  transaction: Transaction,
 ) {
   console.log("==========     Checking for stale data     ==========");
 
@@ -66,7 +66,7 @@ async function handleStaleData(
   const apiProductIds = new Set(apiProducts.map((p) => p.productId));
 
   const productsToRemove = [...dbProductIds].filter(
-    (id) => !apiProductIds.has(id)
+    (id) => !apiProductIds.has(id),
   );
 
   if (productsToRemove.length > 0) {
@@ -92,12 +92,12 @@ async function handleStaleData(
   const apiPromotionIds = new Set(apiPromotions.map((p) => p.promotionId));
 
   const promotionsToRemove = [...dbPromotionIds].filter(
-    (id) => !apiPromotionIds.has(id)
+    (id) => !apiPromotionIds.has(id),
   );
 
   if (promotionsToRemove.length > 0) {
     console.log(
-      `Found ${promotionsToRemove.length} stale promotions to remove.`
+      `Found ${promotionsToRemove.length} stale promotions to remove.`,
     );
     // Assuming Promotion model has cascade delete for its associations
     await Promotion.destroy({
@@ -122,7 +122,7 @@ async function handleStaleData(
     where: {
       productId: {
         [Op.notIn]: sequelize.literal(
-          `(SELECT "productId" FROM "prices" WHERE "date" >= '${thirtyDaysAgo.toISOString()}')`
+          `(SELECT "productId" FROM "prices" WHERE "date" >= '${thirtyDaysAgo.toISOString()}')`,
         ),
       },
     },
@@ -139,7 +139,7 @@ async function handleStaleData(
       .map((pc) => pc.pricechangeId);
 
     console.log(
-      `Found ${stalePriceChanges.length} price changes for products with no recent price updates.`
+      `Found ${stalePriceChanges.length} price changes for products with no recent price updates.`,
     );
 
     if (priceChangesToReset.length > 0) {
@@ -149,13 +149,13 @@ async function handleStaleData(
         {
           where: { pricechangeId: { [Op.in]: priceChangesToReset } },
           transaction,
-        }
+        },
       );
     }
 
     if (priceChangesToRemove.length > 0) {
       console.log(
-        `Removing ${priceChangesToRemove.length} stale P2 price changes.`
+        `Removing ${priceChangesToRemove.length} stale P2 price changes.`,
       );
       await PriceChange.destroy({
         where: {
@@ -173,7 +173,7 @@ async function handleStaleData(
   const XDaysAgo = new Date();
   XDaysAgo.setDate(
     XDaysAgo.getDate() -
-      (Number.parseInt(process.env.AMOUNT_OF_DAYS_KEPT) || 90)
+      (Number.parseInt(process.env.AMOUNT_OF_DAYS_KEPT) || 90),
   );
 
   const oldPricesCount = await Price.destroy({
@@ -198,13 +198,13 @@ async function handleStaleData(
 async function savePromotions(
   apiPromotions: any[],
   apiProducts: any[],
-  transaction: Transaction
+  transaction: Transaction,
 ) {
   console.log("==========     Saving Promotions     ==========");
 
   // De-duplicate promotions by promotionId to prevent "ON CONFLICT" errors.
   const uniquePromotions = Array.from(
-    new Map(apiPromotions.map((p) => [p.promotionId, p])).values()
+    new Map(apiPromotions.map((p) => [p.promotionId, p])).values(),
   );
 
   // Upsert promotions to handle new and updated ones.
@@ -241,7 +241,7 @@ async function savePromotions(
       const productIds = linkedTechnicalArticleNumbers
         .map((tan) => {
           const product = apiProducts.find(
-            (p) => p.technicalArticleNumber === tan
+            (p) => p.technicalArticleNumber === tan,
           );
           return product ? product.productId : null;
         })
@@ -288,8 +288,40 @@ async function savePromotions(
 export async function scraper() {
   console.log("==========   Starting Scraper   ==========");
   try {
-    const apiProducts = await getAllProducts();
-    const apiPromotions = await getAllPromotions();
+    const placeIds = (process.env.PLACE_IDS || process.env.PLACE_ID || "")
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean);
+
+    if (placeIds.length === 0) {
+      throw new Error("No PLACE_IDS configured. Set PLACE_IDS in .env.");
+    }
+
+    console.log(`Scraping ${placeIds.length} place(s): ${placeIds.join(", ")}`);
+
+    const allProducts: any[] = [];
+    const allPromotions: any[] = [];
+
+    for (const placeId of placeIds) {
+      const [placeProducts, placePromotions] = await Promise.all([
+        getAllProducts(placeId),
+        getAllPromotions(placeId),
+      ]);
+      allProducts.push(...placeProducts);
+      allPromotions.push(...placePromotions);
+    }
+
+    // De-duplicate merged results across places before saving.
+    const apiProducts = Array.from(
+      new Map(allProducts.map((p) => [p.productId, p])).values(),
+    );
+    const apiPromotions = Array.from(
+      new Map(allPromotions.map((p) => [p.promotionId, p])).values(),
+    );
+
+    console.log(
+      `Merged: ${apiProducts.length} unique products, ${apiPromotions.length} unique promotions`,
+    );
 
     await connectToDatabase();
 

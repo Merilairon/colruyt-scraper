@@ -20,12 +20,14 @@ const progressBar = new SingleBar({}, Presets.shades_classic);
  *
  * @throws Will throw an error if the request fails.
  */
-export async function getAllPromotions() {
-  console.log("==========     Scraping promotions...     ==========");
+export async function getAllPromotions(placeId: string) {
+  console.log(
+    `==========     Scraping promotions for placeId ${placeId}...     ==========`,
+  );
   const promotionsPerPage = 50; // The number of products to retrieve per page.
 
   // Get the total number of products available.
-  const productCount = await getPromotionCount();
+  const productCount = await getPromotionCount(placeId);
 
   // Calculate the number of pages to retrieve.
   const pageCount = Math.ceil(productCount / promotionsPerPage);
@@ -44,11 +46,11 @@ export async function getAllPromotions() {
         {},
         {
           clientCode: "CLP",
-          placeId: process.env.PLACE_ID,
+          placeId,
           page: i,
           size: promotionsPerPage,
-        }
-      )
+        },
+      ),
     );
   }
 
@@ -59,7 +61,7 @@ export async function getAllPromotions() {
         progressBar.increment();
         return promotions.push(...res.promotions);
       })
-      .catch(console.error)
+      .catch(console.error),
   );
 
   // Wait for all promises to resolve.
@@ -71,15 +73,15 @@ export async function getAllPromotions() {
   return promotions;
 }
 
-async function getPromotionCount(): Promise<number> {
+async function getPromotionCount(placeId: string): Promise<number> {
   const responseBody = await requestHandler.proxiedRequest(
     process.env.PROMOTION_URL,
     {},
     {
       clientCode: "CLP",
-      placeId: process.env.PLACE_ID,
+      placeId,
       size: 50,
-    }
+    },
   );
 
   return responseBody.totalPromotionFound;

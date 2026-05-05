@@ -5,7 +5,7 @@ const requestHandler = RequestHandler.instance;
 
 const progressBar = new SingleBar(
   { hideCursor: true, autopadding: true },
-  Presets.shades_classic
+  Presets.shades_classic,
 );
 
 /**
@@ -25,12 +25,14 @@ const progressBar = new SingleBar(
  *
  * @throws Will throw an error if the request to fetch products fails.
  */
-export async function getAllProducts() {
-  console.log("==========     Scraping products...     ==========");
+export async function getAllProducts(placeId: string) {
+  console.log(
+    `==========     Scraping products for placeId ${placeId}...     ==========`,
+  );
   const productsPerPage = 250; // The number of products to retrieve per page.
 
   // Get the total number of products available.
-  const productCount = await getProductCount();
+  const productCount = await getProductCount(placeId);
 
   // Calculate the number of pages to retrieve.
   const pageCount = Math.ceil(productCount / productsPerPage);
@@ -49,12 +51,12 @@ export async function getAllProducts() {
         {},
         {
           clientCode: "CLP",
-          placeId: process.env.PLACE_ID,
+          placeId,
           sort: "basicprice asc",
           page: i,
           size: 250,
-        }
-      )
+        },
+      ),
     );
   }
   //   Create an array of promises to fetch the product data for each page.
@@ -64,7 +66,7 @@ export async function getAllProducts() {
         progressBar.increment();
         return products.push(...res.products);
       })
-      .catch(console.error)
+      .catch(console.error),
   );
 
   // Wait for all promises to resolve.
@@ -83,15 +85,15 @@ export async function getAllProducts() {
  *
  * @throws Will throw an error if the request fails or if the response does not contain the expected data.
  */
-async function getProductCount(): Promise<number> {
+async function getProductCount(placeId: string): Promise<number> {
   const responseBody = await requestHandler.proxiedRequest(
     process.env.PRODUCT_URL,
     {},
     {
       clientCode: "CLP",
-      placeId: process.env.PLACE_ID,
+      placeId,
       size: 1,
-    }
+    },
   );
 
   return responseBody.productsFound;
