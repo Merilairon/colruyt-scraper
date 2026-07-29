@@ -43,8 +43,15 @@ PriceChange.init(
       // Add a composite unique index
       { unique: true, fields: ["productId", "priceChangeType"] },
     ],
-  }
+  },
 );
 
-Product.hasMany(PriceChange, { foreignKey: "productId", as: "priceChanges" });
-PriceChange.belongsTo(Product, { foreignKey: "productId" });
+Product.hasMany(PriceChange, {
+  foreignKey: "productId",
+  as: "priceChanges",
+  onDelete: "CASCADE",
+});
+PriceChange.belongsTo(Product, {
+  foreignKey: "productId",
+  onDelete: "CASCADE",
+});

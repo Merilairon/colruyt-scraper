@@ -45,8 +45,12 @@ Price.init(
     pricePerUOM: DataTypes.FLOAT,
     isPromoActive: DataTypes.STRING,
   },
-  { sequelize, modelName: "price" }
+  {
+    sequelize,
+    modelName: "price",
+    indexes: [{ unique: true, fields: ["productId", "date"] }],
+  },
 );
 
-Product.hasMany(Price, { foreignKey: "productId" });
-Price.belongsTo(Product, { foreignKey: "productId" });
+Product.hasMany(Price, { foreignKey: "productId", onDelete: "CASCADE" });
+Price.belongsTo(Product, { foreignKey: "productId", onDelete: "CASCADE" });
