@@ -10,6 +10,7 @@ import { styleText } from "node:util";
 
 import { scraper } from "./scraper";
 import { comparer } from "./comparer";
+import { refreshCache } from "./utils/cache";
 import bodyParser from "body-parser";
 import path from "path";
 
@@ -17,7 +18,7 @@ const app = express();
 app.use(
   bodyParser.urlencoded({
     extended: true,
-  })
+  }),
 );
 app.use(bodyParser.json());
 const port = process.env.PORT || 3000;
@@ -46,7 +47,7 @@ const specs = swaggerJsdoc(options);
 app.use(
   "/api/docs",
   swaggerUi.serve,
-  swaggerUi.setup(specs, { explorer: true })
+  swaggerUi.setup(specs, { explorer: true }),
 );
 
 // Handle unknown paths
@@ -62,10 +63,13 @@ async function scrapeAndCompare() {
   console.log(
     styleText(
       "blue",
-      "==========     " + new Date().toLocaleString() + "     =========="
-    )
+      "==========     " + new Date().toLocaleString() + "     ==========",
+    ),
   );
-  scraper().then(comparer);
+  await scraper();
+  await comparer();
+  await refreshCache("products");
+  await refreshCache("promotions");
 }
 
 if (process.env.START_MODE === "SCRAPE") {

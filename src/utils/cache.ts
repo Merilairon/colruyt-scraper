@@ -42,7 +42,7 @@ export function put(key: CacheKey, val: CacheValue): void {
  * Refreshes the cache for a given key by fetching data from the database.
  * @param key The cache key to refresh.
  */
-async function refreshCache(key: CacheKey) {
+export async function refreshCache(key: CacheKey) {
   console.log(`Refreshing cache for key: ${key}`);
   switch (key) {
     case "products":
@@ -143,7 +143,7 @@ async function getAllPromotions(): Promise<Promotion[]> {
     where: { linkedTechnicalArticleNumber: { [Op.not]: null } },
   });
   promotions = promotions.filter(
-    (promotion: Promotion) => promotion.products.length > 0
+    (promotion: Promotion) => promotion.products.length > 0,
   );
   return promotions;
 }
