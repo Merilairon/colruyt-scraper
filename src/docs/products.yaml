@@ -223,6 +223,11 @@ components:
           type: string
         technicalArticleNumber:
           type: string
+        GTIN:
+          type: array
+          items:
+            type: string
+          description: The barcode(s) (GTIN/EAN) of the product, as returned by the Colruyt product API.
         AlcoholVolume:
           type: string
         CountryOfOrigin:
