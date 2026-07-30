@@ -13,7 +13,7 @@ export class Product extends Model {
   declare thumbNail?: string;
   declare commercialArticleNumber: string;
   declare technicalArticleNumber: string;
-  declare GTIN?: string[];
+  declare gtin?: string[];
   declare AlcoholVolume?: string;
   declare CountryOfOrigin?: string;
   declare FicCode?: string;
@@ -54,7 +54,7 @@ Product.init(
       type: DataTypes.STRING,
       unique: true,
     },
-    GTIN: DataTypes.ARRAY(DataTypes.STRING),
+    gtin: DataTypes.ARRAY(DataTypes.STRING),
     AlcoholVolume: DataTypes.STRING,
     CountryOfOrigin: DataTypes.STRING,
     FicCode: DataTypes.STRING,

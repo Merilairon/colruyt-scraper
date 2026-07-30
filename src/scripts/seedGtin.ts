@@ -21,15 +21,15 @@ async function seedGtin() {
 
     // De-duplicate products by productId, same as the regular scraper does.
     const uniqueProducts = Array.from(
-      new Map(apiProducts.map((p) => [p.productId, p])).values()
+      new Map(apiProducts.map((p) => [p.productId, p])).values(),
     );
 
     await Product.bulkCreate(uniqueProducts, {
-      updateOnDuplicate: ["GTIN"],
+      updateOnDuplicate: ["gtin"],
     });
 
     console.log(
-      `==========   Seeded GTIN for ${uniqueProducts.length} products   ==========`
+      `==========   Seeded gtin for ${uniqueProducts.length} products   ==========`,
     );
   } catch (error) {
     console.error(`Error seeding GTIN: ${error.message}`);

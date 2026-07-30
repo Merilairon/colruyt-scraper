@@ -207,7 +207,3 @@ colruyt-scraper/
 2. Make your changes and add tests where applicable.
 3. Ensure all tests pass (`pnpm test`).
 4. Open a pull request describing your changes.
-
-## Still need to execute this
-
-ALTER TABLE products ADD COLUMN "GTIN" varchar(255)[];

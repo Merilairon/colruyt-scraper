@@ -223,7 +223,7 @@ components:
           type: string
         technicalArticleNumber:
           type: string
-        GTIN:
+        gtin:
           type: array
           items:
             type: string
