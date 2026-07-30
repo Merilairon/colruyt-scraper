@@ -68,19 +68,19 @@ A Node.js/TypeScript service that scrapes product prices and promotions from the
 
 All configuration is done via environment variables. Create a `.env` file in the project root (use `.env.example` as a template):
 
-| Variable              | Description                                                                                                       |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `PROXY_ENDPOINT`      | Comma-separated proxy server URLs (e.g. `http://user:pass@host1:port,http://user:pass@host2:port`)              |
-| `ENABLE_PROXY`        | Set to `true` to route requests through the configured proxy/proxies                                              |
-| `HOST_URL`            | Base URL of the Colruyt website                                                                                   |
-| `API_HOST_URL`        | Base URL for the Colruyt API host                                                               |
-| `API_URL`             | Endpoint for general product/price API calls                                                    |
-| `PROMOTION_URL`       | Endpoint for fetching promotion data                                                             |
-| `PRODUCT_URL`         | Endpoint for fetching individual product details                                                |
-| `PG_HOST`             | PostgreSQL connection string (e.g. `postgres://user:pass@localhost:5432/dbname`)                |
-| `PLACE_ID`            | Colruyt store place ID used when querying the API                                               |
-| `AMOUNT_OF_DAYS_KEPT` | Number of days of historical price data to retain in the database                              |
-| `START_MODE`          | Startup mode: `SCRAPE` (scrape + compare), `COMPARE` (compare only), or empty (API server only) |
+| Variable              | Description                                                                                        |
+| --------------------- | -------------------------------------------------------------------------------------------------- |
+| `PROXY_ENDPOINT`      | Comma-separated proxy server URLs (e.g. `http://user:pass@host1:port,http://user:pass@host2:port`) |
+| `ENABLE_PROXY`        | Set to `true` to route requests through the configured proxy/proxies                               |
+| `HOST_URL`            | Base URL of the Colruyt website                                                                    |
+| `API_HOST_URL`        | Base URL for the Colruyt API host                                                                  |
+| `API_URL`             | Endpoint for general product/price API calls                                                       |
+| `PROMOTION_URL`       | Endpoint for fetching promotion data                                                               |
+| `PRODUCT_URL`         | Endpoint for fetching individual product details                                                   |
+| `PG_HOST`             | PostgreSQL connection string (e.g. `postgres://user:pass@localhost:5432/dbname`)                   |
+| `PLACE_ID`            | Colruyt store place ID used when querying the API                                                  |
+| `AMOUNT_OF_DAYS_KEPT` | Number of days of historical price data to retain in the database                                  |
+| `START_MODE`          | Startup mode: `SCRAPE` (scrape + compare), `COMPARE` (compare only), or empty (API server only)    |
 
 ---
 
@@ -109,12 +109,11 @@ Control the service behaviour via the `START_MODE` variable in `.env`:
 
 | `START_MODE` | Behaviour                                                                                           |
 | ------------ | --------------------------------------------------------------------------------------------------- |
-| *(empty)*    | Start the API server; the daily cron remains enabled and runs `scrapeAndCompare()` at 08:00        |
+| _(empty)_    | Start the API server; the daily cron remains enabled and runs `scrapeAndCompare()` at 08:00         |
 | `SCRAPE`     | Start the API server, immediately run the scraper + price comparer, and keep the daily cron enabled |
 | `COMPARE`    | Start the API server, immediately run the price comparer only, and keep the daily cron enabled      |
 
-Note: the scheduled daily cron job runs `scrapeAndCompare()` in all modes, including `START_MODE=COMPARE`.
----
+## Note: the scheduled daily cron job runs `scrapeAndCompare()` in all modes, including `START_MODE=COMPARE`.
 
 ## API Reference
 
@@ -126,13 +125,13 @@ http://localhost:3000/api/docs
 
 ### Endpoints
 
-| Method | Path                         | Description                               |
-| ------ | ---------------------------- | ----------------------------------------- |
-| `GET`  | `/api/products`              | List all scraped products                 |
-| `GET`  | `/api/products/changes`      | List detected product price changes       |
-| `GET`  | `/api/products/:productId`   | Get a single scraped product by ID        |
-| `GET`  | `/api/promotions`            | List all active promotions                |
-| `GET`  | `/api/promotions/:promotionId` | Get a single promotion by ID            |
+| Method | Path                           | Description                         |
+| ------ | ------------------------------ | ----------------------------------- |
+| `GET`  | `/api/products`                | List all scraped products           |
+| `GET`  | `/api/products/changes`        | List detected product price changes |
+| `GET`  | `/api/products/:productId`     | Get a single scraped product by ID  |
+| `GET`  | `/api/promotions`              | List all active promotions          |
+| `GET`  | `/api/promotions/:promotionId` | Get a single promotion by ID        |
 
 Paths not handled by the API return `404 Not Found`.
 
@@ -208,3 +207,7 @@ colruyt-scraper/
 2. Make your changes and add tests where applicable.
 3. Ensure all tests pass (`pnpm test`).
 4. Open a pull request describing your changes.
+
+## Still need to execute this
+
+ALTER TABLE products ADD COLUMN "GTIN" varchar(255)[];
