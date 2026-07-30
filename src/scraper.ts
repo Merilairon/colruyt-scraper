@@ -8,8 +8,10 @@ import { Promotion } from "./models/Promotion";
 import { Benefit } from "./models/Benefit";
 import { PromotionProduct } from "./models/PromotionProduct";
 import { PromotionText } from "./models/PromotionText";
+import { Nutrition } from "./models/Nutrition";
 import { Op, Transaction } from "sequelize";
 import { PriceChange, PriceChangeType } from "./models/PriceChange";
+import { enrichProductsWithNutrition } from "./scrapers/nutritionScraper";
 
 /**
  * Connects to the database and syncs the models.
@@ -29,7 +31,7 @@ async function saveProducts(apiProducts: any[], transaction: Transaction) {
 
   // De-duplicate products by productId to prevent "ON CONFLICT" errors.
   const uniqueProducts = Array.from(
-    new Map(apiProducts.map((p) => [p.productId, p])).values()
+    new Map(apiProducts.map((p) => [p.productId, p])).values(),
   );
 
   // Upsert products to handle new and updated ones.
@@ -43,7 +45,7 @@ async function saveProducts(apiProducts: any[], transaction: Transaction) {
       productId: p.productId,
       ...p.price,
     })),
-    { ignoreDuplicates: true, transaction } // Ignore if a price for this product on this day already exists.
+    { ignoreDuplicates: true, transaction }, // Ignore if a price for this product on this day already exists.
   );
 }
 
@@ -56,7 +58,7 @@ async function saveProducts(apiProducts: any[], transaction: Transaction) {
 async function handleStaleData(
   apiProducts: any[],
   apiPromotions: any[],
-  transaction: Transaction
+  transaction: Transaction,
 ) {
   console.log("==========     Checking for stale data     ==========");
 
@@ -66,7 +68,7 @@ async function handleStaleData(
   const apiProductIds = new Set(apiProducts.map((p) => p.productId));
 
   const productsToRemove = [...dbProductIds].filter(
-    (id) => !apiProductIds.has(id)
+    (id) => !apiProductIds.has(id),
   );
 
   if (productsToRemove.length > 0) {
@@ -92,12 +94,12 @@ async function handleStaleData(
   const apiPromotionIds = new Set(apiPromotions.map((p) => p.promotionId));
 
   const promotionsToRemove = [...dbPromotionIds].filter(
-    (id) => !apiPromotionIds.has(id)
+    (id) => !apiPromotionIds.has(id),
   );
 
   if (promotionsToRemove.length > 0) {
     console.log(
-      `Found ${promotionsToRemove.length} stale promotions to remove.`
+      `Found ${promotionsToRemove.length} stale promotions to remove.`,
     );
     // Assuming Promotion model has cascade delete for its associations
     await Promotion.destroy({
@@ -122,7 +124,7 @@ async function handleStaleData(
     where: {
       productId: {
         [Op.notIn]: sequelize.literal(
-          `(SELECT "productId" FROM "prices" WHERE "date" >= '${thirtyDaysAgo.toISOString()}')`
+          `(SELECT "productId" FROM "prices" WHERE "date" >= '${thirtyDaysAgo.toISOString()}')`,
         ),
       },
     },
@@ -139,7 +141,7 @@ async function handleStaleData(
       .map((pc) => pc.pricechangeId);
 
     console.log(
-      `Found ${stalePriceChanges.length} price changes for products with no recent price updates.`
+      `Found ${stalePriceChanges.length} price changes for products with no recent price updates.`,
     );
 
     if (priceChangesToReset.length > 0) {
@@ -149,13 +151,13 @@ async function handleStaleData(
         {
           where: { pricechangeId: { [Op.in]: priceChangesToReset } },
           transaction,
-        }
+        },
       );
     }
 
     if (priceChangesToRemove.length > 0) {
       console.log(
-        `Removing ${priceChangesToRemove.length} stale P2 price changes.`
+        `Removing ${priceChangesToRemove.length} stale P2 price changes.`,
       );
       await PriceChange.destroy({
         where: {
@@ -173,7 +175,7 @@ async function handleStaleData(
   const XDaysAgo = new Date();
   XDaysAgo.setDate(
     XDaysAgo.getDate() -
-      (Number.parseInt(process.env.AMOUNT_OF_DAYS_KEPT) || 90)
+      (Number.parseInt(process.env.AMOUNT_OF_DAYS_KEPT) || 90),
   );
 
   const oldPricesCount = await Price.destroy({
@@ -198,13 +200,13 @@ async function handleStaleData(
 async function savePromotions(
   apiPromotions: any[],
   apiProducts: any[],
-  transaction: Transaction
+  transaction: Transaction,
 ) {
   console.log("==========     Saving Promotions     ==========");
 
   // De-duplicate promotions by promotionId to prevent "ON CONFLICT" errors.
   const uniquePromotions = Array.from(
-    new Map(apiPromotions.map((p) => [p.promotionId, p])).values()
+    new Map(apiPromotions.map((p) => [p.promotionId, p])).values(),
   );
 
   // Upsert promotions to handle new and updated ones.
@@ -241,7 +243,7 @@ async function savePromotions(
       const productIds = linkedTechnicalArticleNumbers
         .map((tan) => {
           const product = apiProducts.find(
-            (p) => p.technicalArticleNumber === tan
+            (p) => p.technicalArticleNumber === tan,
           );
           return product ? product.productId : null;
         })
@@ -283,6 +285,34 @@ async function savePromotions(
 }
 
 /**
+ * Enriches scraped products with nutrition data from Open Food Facts.
+ * Products that already have a Nutrition row are skipped.
+ */
+async function enrichMissingProducts(apiProducts: any[]) {
+  console.log(
+    "==========     Enriching products with nutrition     ==========",
+  );
+
+  const productIds = apiProducts.map((p) => p.productId);
+  const existingNutrition = await Nutrition.findAll({
+    attributes: ["productId"],
+    where: { productId: { [Op.in]: productIds } },
+  });
+  const enrichedIds = new Set(existingNutrition.map((n) => n.productId));
+
+  const productsToEnrich = apiProducts.filter(
+    (p) => p.gtin?.length > 0 && !enrichedIds.has(p.productId),
+  );
+
+  if (productsToEnrich.length === 0) {
+    console.log("No products need nutrition enrichment.");
+    return;
+  }
+
+  await enrichProductsWithNutrition(productsToEnrich);
+}
+
+/**
  * The scraper function that executes the program logic.
  */
 export async function scraper() {
@@ -297,6 +327,7 @@ export async function scraper() {
       await handleStaleData(apiProducts, apiPromotions, t);
       await saveProducts(apiProducts, t);
       await savePromotions(apiPromotions, apiProducts, t);
+      await enrichMissingProducts(apiProducts);
     });
 
     console.log("==========     Done Saving      ==========");
