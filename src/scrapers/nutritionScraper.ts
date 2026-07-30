@@ -1,4 +1,3 @@
-import { OpenFoodFacts } from "@openfoodfacts/openfoodfacts-nodejs";
 import { Product } from "../models/Product";
 import { Nutrition } from "../models/Nutrition";
 import { SingleBar, Presets } from "cli-progress";
@@ -11,12 +10,34 @@ const OFF_FIELDS = [
   "nova_group",
 ];
 
+const OFF_BASE_URL = "https://world.openfoodfacts.org";
+
 type NutritionData = Partial<Nutrition> & { productId: string };
 
-type OpenFoodFactsClient = InstanceType<typeof OpenFoodFacts>;
+type OpenFoodFactsClient = {
+  getProductV3: (
+    gtin: string,
+    options: { fields: string[] },
+  ) => Promise<{ data?: any }>;
+};
 
 function createOpenFoodFactsClient(): OpenFoodFactsClient {
-  return new OpenFoodFacts(globalThis.fetch);
+  return {
+    async getProductV3(gtin, options) {
+      const fields = options.fields.join(",");
+      const url = `${OFF_BASE_URL}/api/v3/product/${encodeURIComponent(
+        gtin,
+      )}?fields=${encodeURIComponent(fields)}`;
+
+      const response = await fetch(url);
+      if (!response.ok) {
+        return { data: undefined };
+      }
+
+      const data = await response.json();
+      return { data };
+    },
+  };
 }
 
 /**

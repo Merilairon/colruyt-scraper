@@ -45,7 +45,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@openfoodfacts/openfoodfacts-nodejs": "^2.0.0-alpha.33",
     "axios": "^1.18.0",
     "body-parser": "^2.2.2",
     "cli-progress": "^3.12.0",
