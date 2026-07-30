@@ -8,7 +8,6 @@
     "debug": "npm run build && npm run start",
     "build": "tsc",
     "start": "node dist/server.js",
-    "seed:gtin": "node dist/scripts/seedGtin.js",
     "test": "jest --forceExit"
   },
   "jest": {
