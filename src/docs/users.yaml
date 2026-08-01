@@ -1,0 +1,236 @@
+tags:
+  - name: Users
+    description: API for authenticated user profiles and per-user data
+
+paths:
+  /api/me:
+    get:
+      summary: Get current user profile and data
+      description: Returns the authenticated user's profile and stored shopping list, favourites, and filters.
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: The current user's profile and data.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          description: Unauthorized
+        "500":
+          description: Internal server error
+    patch:
+      summary: Update current user profile
+      description: Updates local profile fields and optionally delegates email/password changes to Auth0.
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileRequest"
+      responses:
+        "200":
+          description: Updated profile and data.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+        "500":
+          description: Internal server error
+
+  /api/me/shopping-list:
+    get:
+      summary: Get current user's shopping list
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: The user's shopping list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShoppingList"
+        "401":
+          description: Unauthorized
+    put:
+      summary: Replace current user's shopping list
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShoppingList"
+      responses:
+        "200":
+          description: The updated shopping list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShoppingList"
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+
+  /api/me/favourites:
+    get:
+      summary: Get current user's favourites
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: The user's favourite product IDs.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Favourites"
+        "401":
+          description: Unauthorized
+    put:
+      summary: Replace current user's favourites
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Favourites"
+      responses:
+        "200":
+          description: The updated favourites.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Favourites"
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+
+  /api/me/filters:
+    get:
+      summary: Get current user's interesting changes filters
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: The user's filters.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Filters"
+        "401":
+          description: Unauthorized
+    put:
+      summary: Replace current user's filters
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Filters"
+      responses:
+        "200":
+          description: The updated filters.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Filters"
+        "400":
+          description: Bad request
+        "401":
+          description: Unauthorized
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+        auth0Id:
+          type: string
+        email:
+          type: string
+        displayName:
+          type: string
+          nullable: true
+        locale:
+          type: string
+          nullable: true
+        shoppingList:
+          $ref: "#/components/schemas/ShoppingList"
+        favourites:
+          $ref: "#/components/schemas/Favourites"
+        filters:
+          $ref: "#/components/schemas/Filters"
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        displayName:
+          type: string
+        locale:
+          type: string
+        email:
+          type: string
+          description: New email address; delegated to Auth0 Management API.
+        password:
+          type: string
+          description: New password; delegated to Auth0 Management API.
+
+    ShoppingList:
+      type: array
+      items:
+        type: object
+        properties:
+          productId:
+            type: string
+          quantity:
+            type: integer
+            minimum: 1
+
+    Favourites:
+      type: array
+      items:
+        type: string
+
+    Filters:
+      type: array
+      items:
+        type: object
+        properties:
+          filterName:
+            type: string
+          fromPercentage:
+            type: number
+          toPercentage:
+            type: number
+          category:
+            type: string

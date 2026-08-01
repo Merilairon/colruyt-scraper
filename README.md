@@ -68,19 +68,25 @@ A Node.js/TypeScript service that scrapes product prices and promotions from the
 
 All configuration is done via environment variables. Create a `.env` file in the project root (use `.env.example` as a template):
 
-| Variable              | Description                                                                                        |
-| --------------------- | -------------------------------------------------------------------------------------------------- |
-| `PROXY_ENDPOINT`      | Comma-separated proxy server URLs (e.g. `http://user:pass@host1:port,http://user:pass@host2:port`) |
-| `ENABLE_PROXY`        | Set to `true` to route requests through the configured proxy/proxies                               |
-| `HOST_URL`            | Base URL of the Colruyt website                                                                    |
-| `API_HOST_URL`        | Base URL for the Colruyt API host                                                                  |
-| `API_URL`             | Endpoint for general product/price API calls                                                       |
-| `PROMOTION_URL`       | Endpoint for fetching promotion data                                                               |
-| `PRODUCT_URL`         | Endpoint for fetching individual product details                                                   |
-| `PG_HOST`             | PostgreSQL connection string (e.g. `postgres://user:pass@localhost:5432/dbname`)                   |
-| `PLACE_ID`            | Colruyt store place ID used when querying the API                                                  |
-| `AMOUNT_OF_DAYS_KEPT` | Number of days of historical price data to retain in the database                                  |
-| `START_MODE`          | Startup mode: `SCRAPE` (scrape + compare), `COMPARE` (compare only), or empty (API server only)    |
+| Variable                    | Description                                                                                        |
+| --------------------------- | -------------------------------------------------------------------------------------------------- |
+| `PROXY_ENDPOINT`            | Comma-separated proxy server URLs (e.g. `http://user:pass@host1:port,http://user:pass@host2:port`) |
+| `ENABLE_PROXY`              | Set to `true` to route requests through the configured proxy/proxies                               |
+| `HOST_URL`                  | Base URL of the Colruyt website                                                                    |
+| `API_HOST_URL`              | Base URL for the Colruyt API host                                                                  |
+| `API_URL`                   | Endpoint for general product/price API calls                                                       |
+| `PROMOTION_URL`             | Endpoint for fetching promotion data                                                               |
+| `PRODUCT_URL`               | Endpoint for fetching individual product details                                                   |
+| `PG_HOST`                   | PostgreSQL connection string (e.g. `postgres://user:pass@localhost:5432/dbname`)                   |
+| `PLACE_ID`                  | Colruyt store place ID used when querying the API                                                  |
+| `AMOUNT_OF_DAYS_KEPT`       | Number of days of historical price data to retain in the database                                  |
+| `START_MODE`                | Startup mode: `SCRAPE` (scrape + compare), `COMPARE` (compare only), or empty (API server only)    |
+| `AUTH0_DOMAIN`              | Auth0 tenant domain (e.g. `your-tenant.auth0.com`)                                                 |
+| `AUTH0_AUDIENCE`            | Auth0 API identifier used by the frontend access token                                             |
+| `AUTH0_ISSUER_BASE_URL`     | Optional Auth0 issuer URL; defaults to `https://${AUTH0_DOMAIN}`                                   |
+| `AUTH0_CLIENT_ID`           | Auth0 Machine-to-Machine application client ID (for account updates)                               |
+| `AUTH0_CLIENT_SECRET`       | Auth0 Machine-to-Machine application client secret (for account updates)                           |
+| `AUTH0_MANAGEMENT_AUDIENCE` | Optional Auth0 Management API audience; defaults to `https://${AUTH0_DOMAIN}/api/v2/`              |
 
 ---
 
@@ -125,13 +131,21 @@ http://localhost:3000/api/docs
 
 ### Endpoints
 
-| Method | Path                           | Description                         |
-| ------ | ------------------------------ | ----------------------------------- |
-| `GET`  | `/api/products`                | List all scraped products           |
-| `GET`  | `/api/products/changes`        | List detected product price changes |
-| `GET`  | `/api/products/:productId`     | Get a single scraped product by ID  |
-| `GET`  | `/api/promotions`              | List all active promotions          |
-| `GET`  | `/api/promotions/:promotionId` | Get a single promotion by ID        |
+| Method  | Path                           | Description                                                   |
+| ------- | ------------------------------ | ------------------------------------------------------------- |
+| `GET`   | `/api/products`                | List all scraped products                                     |
+| `GET`   | `/api/products/changes`        | List detected product price changes                           |
+| `GET`   | `/api/products/:productId`     | Get a single scraped product by ID                            |
+| `GET`   | `/api/promotions`              | List all active promotions                                    |
+| `GET`   | `/api/promotions/:promotionId` | Get a single promotion by ID                                  |
+| `GET`   | `/api/me`                      | Get the authenticated user's profile and data                 |
+| `PATCH` | `/api/me`                      | Update profile; email/password changes are delegated to Auth0 |
+| `GET`   | `/api/me/shopping-list`        | Get the authenticated user's shopping list                    |
+| `PUT`   | `/api/me/shopping-list`        | Replace the authenticated user's shopping list                |
+| `GET`   | `/api/me/favourites`           | Get the authenticated user's favourites                       |
+| `PUT`   | `/api/me/favourites`           | Replace the authenticated user's favourites                   |
+| `GET`   | `/api/me/filters`              | Get the authenticated user's interesting changes filters      |
+| `PUT`   | `/api/me/filters`              | Replace the authenticated user's interesting changes filters  |
 
 Paths not handled by the API return `404 Not Found`.
 

@@ -2,6 +2,11 @@ import "dotenv/config";
 import express from "express";
 import productRoute from "./routes/products";
 import PromotionRoute from "./routes/promotions";
+import userRoute from "./routes/users";
+
+//Import User Data as this is not initiated by a scraper or comparer
+import "./models/User";
+import "./models/UserData";
 import swaggerJsdoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
 import cors from "cors";
@@ -27,6 +32,7 @@ app.use(cors());
 
 app.use("/api/products", productRoute);
 app.use("/api/promotions", PromotionRoute);
+app.use("/api/me", userRoute);
 
 const options = {
   definition: {
@@ -47,7 +53,7 @@ const specs = swaggerJsdoc(options);
 app.use(
   "/api/docs",
   swaggerUi.serve,
-  swaggerUi.setup(specs, { explorer: true })
+  swaggerUi.setup(specs, { explorer: true }),
 );
 
 // Handle unknown paths
