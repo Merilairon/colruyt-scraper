@@ -327,8 +327,7 @@ export async function scraper() {
       await handleStaleData(apiProducts, apiPromotions, t);
       await saveProducts(apiProducts, t);
       await savePromotions(apiPromotions, apiProducts, t);
-      // Nutrition enrichment is temporarily disabled; use `npm run seed:nutrition` to backfill manually.
-      // await enrichMissingProducts(apiProducts);
+      await enrichMissingProducts(apiProducts);
     });
 
     console.log("==========     Done Saving      ==========");

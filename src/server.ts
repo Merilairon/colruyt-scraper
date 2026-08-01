@@ -61,6 +61,21 @@ app.use((req, res) => {
   res.status(404).json({ message: "Not Found" });
 });
 
+// Centralized error handler: never expose stack traces or raw auth errors
+app.use(
+  (
+    err: Error & { status?: number; statusCode?: number; code?: string },
+    req: express.Request,
+    res: express.Response,
+    _next: express.NextFunction,
+  ) => {
+    console.error(err);
+    const status = err.status || err.statusCode || 500;
+    const message = status >= 500 ? "Internal Server Error" : err.message;
+    res.status(status).json({ message });
+  },
+);
+
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
