@@ -88,6 +88,8 @@ All configuration is done via environment variables. Create a `.env` file in the
 | `AUTH0_CLIENT_SECRET`       | Auth0 Machine-to-Machine application client secret (for account updates)                           |
 | `AUTH0_MANAGEMENT_AUDIENCE` | Optional Auth0 Management API audience; defaults to `https://${AUTH0_DOMAIN}/api/v2/`              |
 
+See [docs/auth0.md](docs/auth0.md) for full Auth0 setup, endpoint examples, and data validation details.
+
 ---
 
 ## Running the Service
