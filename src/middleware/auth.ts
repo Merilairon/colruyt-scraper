@@ -13,8 +13,7 @@ export interface AuthenticatedRequest extends Request {
 export const checkJwt = auth({
   audience: process.env.AUTH0_AUDIENCE,
   issuerBaseURL:
-    process.env.AUTH0_ISSUER_BASE_URL ||
-    `https://${process.env.AUTH0_DOMAIN}`,
+    process.env.AUTH0_ISSUER_BASE_URL || `https://${process.env.AUTH0_DOMAIN}`,
   tokenSigningAlg: "RS256",
 });
 
@@ -44,10 +43,9 @@ export async function requireUser(
       await user.save();
     }
 
-    let userData = await UserData.findOne({ where: { userId: user.id } });
-    if (!userData) {
-      userData = await UserData.create({ userId: user.id });
-    }
+    let [userData] = await UserData.findOrCreate({
+      where: { userId: user.id },
+    });
 
     req.userRecord = { user, userData };
     next();
