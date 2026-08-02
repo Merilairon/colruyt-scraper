@@ -225,6 +225,9 @@ components:
         password:
           type: string
           description: New password; delegated to Auth0 Management API.
+        oldPassword:
+          type: string
+          description: Current password. Required when password is changed.
 
     DeleteAccountRequest:
       type: object

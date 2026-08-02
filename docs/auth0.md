@@ -26,14 +26,15 @@ The local user profile (`displayName`, `locale`, `email`) is stored in PostgreSQ
 
 ### Environment variables
 
-| Variable                    | Required                          | Default                           | Description                                       |
-| --------------------------- | --------------------------------- | --------------------------------- | ------------------------------------------------- |
-| `AUTH0_DOMAIN`              | yes                               | —                                 | Auth0 tenant domain, e.g. `your-tenant.auth0.com` |
-| `AUTH0_AUDIENCE`            | yes                               | —                                 | Identifier of the Auth0 API used by the backend   |
-| `AUTH0_ISSUER_BASE_URL`     | no                                | `https://${AUTH0_DOMAIN}`         | JWT issuer URL                                    |
-| `AUTH0_CLIENT_ID`           | yes for profile / account changes | —                                 | M2M application Client ID                         |
-| `AUTH0_CLIENT_SECRET`       | yes for profile / account changes | —                                 | M2M application Client Secret                     |
-| `AUTH0_MANAGEMENT_AUDIENCE` | no                                | `https://${AUTH0_DOMAIN}/api/v2/` | Auth0 Management API audience                     |
+| Variable                    | Required                          | Default                           | Description                                                                                        |
+| --------------------------- | --------------------------------- | --------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `AUTH0_DOMAIN`              | yes                               | —                                 | Auth0 tenant domain, e.g. `your-tenant.auth0.com`                                                  |
+| `AUTH0_AUDIENCE`            | yes                               | —                                 | Identifier of the Auth0 API used by the backend                                                    |
+| `AUTH0_ISSUER_BASE_URL`     | no                                | `https://${AUTH0_DOMAIN}`         | JWT issuer URL                                                                                     |
+| `AUTH0_CLIENT_ID`           | yes for profile / account changes | —                                 | M2M application Client ID                                                                          |
+| `AUTH0_CLIENT_SECRET`       | yes for profile / account changes | —                                 | M2M application Client Secret                                                                      |
+| `AUTH0_MANAGEMENT_AUDIENCE` | no                                | `https://${AUTH0_DOMAIN}/api/v2/` | Auth0 Management API audience                                                                      |
+| `AUTH0_CONNECTION`          | no                                | —                                 | Auth0 database connection used for password verification (e.g. `Username-Password-Authentication`) |
 
 ## Authentication flow
 
@@ -114,6 +115,8 @@ curl -X PATCH -H "Authorization: Bearer <token>" \
 
 When `email` or `password` is provided, the backend calls the Auth0 Management API. The local `email` value is updated only after the Management API call succeeds.
 
+When `password` is provided, `oldPassword` must also be supplied. The backend verifies `oldPassword` against Auth0's Authentication API before changing the password.
+
 ### Delete account
 
 ```bash
@@ -179,6 +182,8 @@ Or apply the SQL manually against your PostgreSQL database.
 | ---------------------------- | ------------------------------------------------ |
 | Missing or invalid token     | `401 Unauthorized`                               |
 | Invalid user data shape      | `400 Bad Request` with a short message           |
+| Missing `oldPassword`        | `400 Bad Request`                                |
+| Incorrect `oldPassword`      | `401 Unauthorized`                               |
 | Auth0 Management API failure | Propagated as `500` with the Auth0 error message |
 | Unexpected server error      | `500 Internal Server Error`                      |
 

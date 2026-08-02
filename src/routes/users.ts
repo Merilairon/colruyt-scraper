@@ -1,5 +1,5 @@
 import { Router, Response } from "express";
-import { ManagementClient } from "auth0";
+import { AuthenticationClient, AuthApiError, ManagementClient } from "auth0";
 import type {
   UserData,
   ShoppingListItem,
@@ -20,6 +20,12 @@ const managementClient = new ManagementClient({
   audience:
     process.env.AUTH0_MANAGEMENT_AUDIENCE ||
     `https://${process.env.AUTH0_DOMAIN}/api/v2/`,
+});
+
+const authClient = new AuthenticationClient({
+  domain: process.env.AUTH0_DOMAIN || "",
+  clientId: process.env.AUTH0_CLIENT_ID || "",
+  clientSecret: process.env.AUTH0_CLIENT_SECRET || "",
 });
 
 router.use(checkJwt);
@@ -86,11 +92,40 @@ router.delete("/", async (req: AuthenticatedRequest, res, next) => {
  * changes to Auth0 via the Management API.
  */
 router.patch("/", async (req: AuthenticatedRequest, res, next) => {
-  const { displayName, locale, email, password } = req.body;
+  const { displayName, locale, email, password, oldPassword } = req.body;
   const user = getUser(req);
   let updatedInAuth0 = false;
 
   try {
+    if (password) {
+      if (!oldPassword) {
+        res.status(400).json({
+          message: "Current password is required to change your password.",
+        });
+        return;
+      }
+
+      try {
+        await authClient.oauth.passwordGrant({
+          username: user.email,
+          password: oldPassword,
+          ...(process.env.AUTH0_CONNECTION && {
+            realm: process.env.AUTH0_CONNECTION,
+          }),
+          ...(process.env.AUTH0_AUDIENCE && {
+            audience: process.env.AUTH0_AUDIENCE,
+          }),
+        });
+      } catch (error) {
+        if (error instanceof AuthApiError && error.error === "invalid_grant") {
+          res.status(401).json({ message: "Current password is incorrect." });
+          return;
+        }
+        next(error);
+        return;
+      }
+    }
+
     if (email || password) {
       await managementClient.users.update(user.auth0Id, {
         ...(email && { email }),

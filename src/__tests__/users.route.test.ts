@@ -1,11 +1,43 @@
-jest.mock("auth0", () => ({
-  ManagementClient: jest.fn().mockImplementation(() => ({
-    users: {
-      update: jest.fn().mockResolvedValue({}),
-      delete: jest.fn().mockResolvedValue({}),
-    },
-  })),
-}));
+jest.mock("auth0", () => {
+  class AuthApiError extends Error {
+    error: string;
+    error_description: string | undefined;
+    statusCode: number;
+    body: unknown;
+    headers: unknown;
+
+    constructor(
+      error: string,
+      error_description?: string,
+      statusCode?: number,
+      body?: unknown,
+      headers?: unknown,
+    ) {
+      super(error_description || error);
+      this.error = error;
+      this.error_description = error_description;
+      this.statusCode = statusCode || 0;
+      this.body = body;
+      this.headers = headers;
+      this.name = "AuthApiError";
+    }
+  }
+
+  return {
+    ManagementClient: jest.fn().mockImplementation(() => ({
+      users: {
+        update: jest.fn().mockResolvedValue({}),
+        delete: jest.fn().mockResolvedValue({}),
+      },
+    })),
+    AuthenticationClient: jest.fn().mockImplementation(() => ({
+      oauth: {
+        passwordGrant: jest.fn().mockResolvedValue({}),
+      },
+    })),
+    AuthApiError,
+  };
+});
 
 const mockCheckJwt = jest.fn((req, res, next) => next());
 const mockRequireUser = jest.fn(async (req, res, next) => {
@@ -54,6 +86,20 @@ jest.mock("../middleware/auth", () => ({
 import express from "express";
 import request from "supertest";
 import userRouter from "../routes/users";
+import { AuthenticationClient, ManagementClient, AuthApiError } from "auth0";
+
+const authClient = (
+  AuthenticationClient as jest.MockedClass<typeof AuthenticationClient>
+).mock.results[0].value as any;
+const managementClient = (
+  ManagementClient as jest.MockedClass<typeof ManagementClient>
+).mock.results[0].value as any;
+
+beforeEach(() => {
+  authClient.oauth.passwordGrant.mockReset().mockResolvedValue({});
+  managementClient.users.update.mockReset().mockResolvedValue({});
+  managementClient.users.delete.mockReset().mockResolvedValue({});
+});
 
 function buildApp(userRecordOverride?: any) {
   const app = express();
@@ -92,19 +138,53 @@ describe("PATCH /api/me", () => {
     expect(res.body.locale).toBe("en");
   });
 
-  it("delegates email and password updates to Auth0", async () => {
-    const { ManagementClient } = require("auth0");
+  it("requires the current password to change the password", async () => {
+    const app = buildApp();
+    const res = await request(app).patch("/api/me").send({
+      password: "newPassword123",
+    });
+    expect(res.status).toBe(400);
+    expect(managementClient.users.update).not.toHaveBeenCalled();
+    expect(authClient.oauth.passwordGrant).not.toHaveBeenCalled();
+  });
+
+  it("rejects the password change when the current password is wrong", async () => {
+    authClient.oauth.passwordGrant.mockRejectedValueOnce(
+      new (AuthApiError as any)("invalid_grant", "Wrong email or password."),
+    );
     const app = buildApp();
     const res = await request(app).patch("/api/me").send({
       email: "new@example.com",
       password: "newPassword123",
+      oldPassword: "wrongPassword",
     });
-    expect(res.status).toBe(200);
-    const instance = ManagementClient.mock.results[0].value;
-    expect(instance.users.update).toHaveBeenCalledWith("auth0|test-user", {
+    expect(res.status).toBe(401);
+    expect(managementClient.users.update).not.toHaveBeenCalled();
+    expect(authClient.oauth.passwordGrant).toHaveBeenCalledWith({
+      username: "test@example.com",
+      password: "wrongPassword",
+    });
+  });
+
+  it("delegates email and password updates to Auth0 after verifying the current password", async () => {
+    const app = buildApp();
+    const res = await request(app).patch("/api/me").send({
       email: "new@example.com",
       password: "newPassword123",
+      oldPassword: "currentPassword",
     });
+    expect(res.status).toBe(200);
+    expect(authClient.oauth.passwordGrant).toHaveBeenCalledWith({
+      username: "test@example.com",
+      password: "currentPassword",
+    });
+    expect(managementClient.users.update).toHaveBeenCalledWith(
+      "auth0|test-user",
+      {
+        email: "new@example.com",
+        password: "newPassword123",
+      },
+    );
   });
 });
 
