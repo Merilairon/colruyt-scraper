@@ -2,12 +2,17 @@ jest.mock("auth0", () => ({
   ManagementClient: jest.fn().mockImplementation(() => ({
     users: {
       update: jest.fn().mockResolvedValue({}),
+      delete: jest.fn().mockResolvedValue({}),
     },
   })),
 }));
 
 const mockCheckJwt = jest.fn((req, res, next) => next());
 const mockRequireUser = jest.fn(async (req, res, next) => {
+  if ((req as any).userRecord) {
+    return next();
+  }
+
   const auth = (req as any).auth;
   const payload = auth?.payload || {
     sub: "auth0|test-user",
@@ -22,6 +27,7 @@ const mockRequireUser = jest.fn(async (req, res, next) => {
       locale: null,
       changed: jest.fn(() => false),
       save: jest.fn().mockResolvedValue(undefined),
+      destroy: jest.fn().mockResolvedValue(undefined),
     },
     userData: {
       userId: 1,
@@ -99,6 +105,37 @@ describe("PATCH /api/me", () => {
       email: "new@example.com",
       password: "newPassword123",
     });
+  });
+});
+
+describe("DELETE /api/me", () => {
+  it("rejects deletion without the confirmation text", async () => {
+    const app = buildApp();
+    const res = await request(app).delete("/api/me").send({ confirm: "yes" });
+    expect(res.status).toBe(400);
+  });
+
+  it("deletes the Auth0 user and the local user on confirmation", async () => {
+    const { ManagementClient } = require("auth0");
+    const destroy = jest.fn().mockResolvedValue(undefined);
+    const userRecordOverride = {
+      user: {
+        id: 1,
+        auth0Id: "auth0|delete-me",
+        email: "delete@example.com",
+        destroy,
+      },
+      userData: { userId: 1, shoppingList: [], favourites: [], filters: [] },
+    };
+    const app = buildApp(userRecordOverride);
+    const res = await request(app)
+      .delete("/api/me")
+      .send({ confirm: "DELETE" });
+
+    expect(res.status).toBe(204);
+    const instance = ManagementClient.mock.results[0].value;
+    expect(instance.users.delete).toHaveBeenCalledWith("auth0|delete-me");
+    expect(destroy).toHaveBeenCalled();
   });
 });
 

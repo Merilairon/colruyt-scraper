@@ -22,18 +22,18 @@ The local user profile (`displayName`, `locale`, `email`) is stored in PostgreSQ
 
 3. **Auth0 Machine-to-Machine (M2M) application** authorized to call the **Auth0 Management API**.
    - Client ID and Client Secret become `AUTH0_CLIENT_ID` and `AUTH0_CLIENT_SECRET`.
-   - Grant: `read:users update:users` (only `update:users` is strictly required for email/password updates).
+   - Grant: `read:users update:users delete:users` (`update:users` is required for email/password updates, `delete:users` for account deletion).
 
 ### Environment variables
 
-| Variable | Required | Default | Description |
-| --- | --- | --- | --- |
-| `AUTH0_DOMAIN` | yes | — | Auth0 tenant domain, e.g. `your-tenant.auth0.com` |
-| `AUTH0_AUDIENCE` | yes | — | Identifier of the Auth0 API used by the backend |
-| `AUTH0_ISSUER_BASE_URL` | no | `https://${AUTH0_DOMAIN}` | JWT issuer URL |
-| `AUTH0_CLIENT_ID` | yes for profile updates | — | M2M application Client ID |
-| `AUTH0_CLIENT_SECRET` | yes for profile updates | — | M2M application Client Secret |
-| `AUTH0_MANAGEMENT_AUDIENCE` | no | `https://${AUTH0_DOMAIN}/api/v2/` | Auth0 Management API audience |
+| Variable                    | Required                          | Default                           | Description                                       |
+| --------------------------- | --------------------------------- | --------------------------------- | ------------------------------------------------- |
+| `AUTH0_DOMAIN`              | yes                               | —                                 | Auth0 tenant domain, e.g. `your-tenant.auth0.com` |
+| `AUTH0_AUDIENCE`            | yes                               | —                                 | Identifier of the Auth0 API used by the backend   |
+| `AUTH0_ISSUER_BASE_URL`     | no                                | `https://${AUTH0_DOMAIN}`         | JWT issuer URL                                    |
+| `AUTH0_CLIENT_ID`           | yes for profile / account changes | —                                 | M2M application Client ID                         |
+| `AUTH0_CLIENT_SECRET`       | yes for profile / account changes | —                                 | M2M application Client Secret                     |
+| `AUTH0_MANAGEMENT_AUDIENCE` | no                                | `https://${AUTH0_DOMAIN}/api/v2/` | Auth0 Management API audience                     |
 
 ## Authentication flow
 
@@ -65,16 +65,17 @@ The JWT must include the `sub` claim (Auth0 user ID). The `email` claim is also 
 
 All endpoints are under `/api/me` and require a valid `Authorization: Bearer <jwt>` header.
 
-| Method | Path | Description |
-| --- | --- | --- |
-| `GET` | `/api/me` | Get current user profile and all stored user data |
-| `PATCH` | `/api/me` | Update `displayName`/`locale` locally; update `email`/`password` in Auth0 |
-| `GET` | `/api/me/shopping-list` | Get shopping list |
-| `PUT` | `/api/me/shopping-list` | Replace shopping list |
-| `GET` | `/api/me/favourites` | Get favourite product IDs |
-| `PUT` | `/api/me/favourites` | Replace favourites |
-| `GET` | `/api/me/filters` | Get interesting-changes filters |
-| `PUT` | `/api/me/filters` | Replace filters |
+| Method   | Path                    | Description                                                                  |
+| -------- | ----------------------- | ---------------------------------------------------------------------------- |
+| `GET`    | `/api/me`               | Get current user profile and all stored user data                            |
+| `PATCH`  | `/api/me`               | Update `displayName`/`locale` locally; update `email`/`password` in Auth0    |
+| `DELETE` | `/api/me`               | Delete the Auth0 user and all local user data (requires `confirm: "DELETE"`) |
+| `GET`    | `/api/me/shopping-list` | Get shopping list                                                            |
+| `PUT`    | `/api/me/shopping-list` | Replace shopping list                                                        |
+| `GET`    | `/api/me/favourites`    | Get favourite product IDs                                                    |
+| `PUT`    | `/api/me/favourites`    | Replace favourites                                                           |
+| `GET`    | `/api/me/filters`       | Get interesting-changes filters                                              |
+| `PUT`    | `/api/me/filters`       | Replace filters                                                              |
 
 Detailed OpenAPI specs are available in the Swagger UI at `/api-docs` and in `src/docs/users.yaml`.
 
@@ -94,9 +95,7 @@ curl -H "Authorization: Bearer <token>" \
   "email": "user@example.com",
   "displayName": "Jane",
   "locale": "nl",
-  "shoppingList": [
-    { "productId": "123456", "quantity": 2 }
-  ],
+  "shoppingList": [{ "productId": "123456", "quantity": 2 }],
   "favourites": ["123456", "789012"],
   "filters": [
     { "filterName": "Big drops", "fromPercentage": -100, "toPercentage": -50 }
@@ -114,6 +113,17 @@ curl -X PATCH -H "Authorization: Bearer <token>" \
 ```
 
 When `email` or `password` is provided, the backend calls the Auth0 Management API. The local `email` value is updated only after the Management API call succeeds.
+
+### Delete account
+
+```bash
+curl -X DELETE -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"confirm":"DELETE"}' \
+  http://localhost:3000/api/me
+```
+
+This deletes the user in Auth0 and removes the local `User` and `UserData` records. On success it returns `204 No Content`.
 
 ### Replace shopping list
 
@@ -165,12 +175,12 @@ Or apply the SQL manually against your PostgreSQL database.
 
 ## Error handling
 
-| Scenario | Response |
-| --- | --- |
-| Missing or invalid token | `401 Unauthorized` |
-| Invalid user data shape | `400 Bad Request` with a short message |
+| Scenario                     | Response                                         |
+| ---------------------------- | ------------------------------------------------ |
+| Missing or invalid token     | `401 Unauthorized`                               |
+| Invalid user data shape      | `400 Bad Request` with a short message           |
 | Auth0 Management API failure | Propagated as `500` with the Auth0 error message |
-| Unexpected server error | `500 Internal Server Error` |
+| Unexpected server error      | `500 Internal Server Error`                      |
 
 ## Testing
 

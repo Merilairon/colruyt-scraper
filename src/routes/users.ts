@@ -57,6 +57,30 @@ router.get("/", (req: AuthenticatedRequest, res: Response) => {
 });
 
 /**
+ * DELETE /api/me
+ * Deletes the authenticated user's Auth0 account and local records.
+ * Requires the client to send `{"confirm": "DELETE"}` as a safety guard.
+ */
+router.delete("/", async (req: AuthenticatedRequest, res, next) => {
+  const { confirm } = req.body;
+  if (confirm !== "DELETE") {
+    res
+      .status(400)
+      .json({ message: "Send { confirm: 'DELETE' } to delete your account" });
+    return;
+  }
+
+  try {
+    const user = getUser(req);
+    await managementClient.users.delete(user.auth0Id);
+    await user.destroy();
+    res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * PATCH /api/me
  * Updates local profile fields and optionally delegates email/password
  * changes to Auth0 via the Management API.

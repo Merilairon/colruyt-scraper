@@ -46,6 +46,27 @@ paths:
           description: Unauthorized
         "500":
           description: Internal server error
+    delete:
+      summary: Delete current user account
+      description: Deletes the authenticated user's Auth0 account and all local data. Requires explicit confirmation.
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteAccountRequest"
+      responses:
+        "204":
+          description: Account deleted successfully.
+        "400":
+          description: Bad request (missing or incorrect confirmation)
+        "401":
+          description: Unauthorized
+        "500":
+          description: Internal server error
 
   /api/me/shopping-list:
     get:
@@ -204,6 +225,16 @@ components:
         password:
           type: string
           description: New password; delegated to Auth0 Management API.
+
+    DeleteAccountRequest:
+      type: object
+      properties:
+        confirm:
+          type: string
+          enum: ["DELETE"]
+          description: Must be the literal string "DELETE".
+      required:
+        - confirm
 
     ShoppingList:
       type: array
