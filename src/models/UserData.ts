@@ -61,6 +61,19 @@ UserData.init(
     modelName: "userData",
     tableName: "userData",
     timestamps: true,
+    // Add hooks for logging to track table name usage
+    hooks: {
+      beforeCreate: () => {
+        if (process.env.NODE_ENV !== "production") {
+          console.log('UserData: Creating record in table "userData"');
+        }
+      },
+      beforeFind: () => {
+        if (process.env.NODE_ENV !== "production") {
+          console.log('UserData: Querying table "userData"');
+        }
+      },
+    },
   },
 );
 

@@ -43,9 +43,31 @@ export async function requireUser(
       await user.save();
     }
 
-    let [userData] = await UserData.findOrCreate({
-      where: { userId: user.id },
-    });
+    // Handle userData creation with proper error handling for race conditions
+    let userData;
+    try {
+      [userData] = await UserData.findOrCreate({
+        where: { userId: user.id },
+      });
+    } catch (error: any) {
+      // Handle potential race condition where concurrent requests try to create the same userData
+      if (
+        error.name === "SequelizeUniqueConstraintError" ||
+        error.code === "23505"
+      ) {
+        // If we get a duplicate key error, try to find the existing record
+        userData = await UserData.findOne({
+          where: { userId: user.id },
+        });
+        if (!userData) {
+          // If still not found, this is a genuine error
+          throw error;
+        }
+      } else {
+        // Re-throw other errors
+        throw error;
+      }
+    }
 
     req.userRecord = { user, userData };
     next();

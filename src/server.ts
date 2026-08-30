@@ -7,6 +7,7 @@ import userRoute from "./routes/users";
 //Import User Data as this is not initiated by a scraper or comparer
 import "./models/User";
 import "./models/UserData";
+import { sequelize, authenticateWithRetry } from "./database";
 import swaggerJsdoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
 import cors from "cors";
@@ -27,6 +28,19 @@ app.use(
 );
 app.use(bodyParser.json());
 const port = process.env.PORT || 3000;
+
+// Initialize database connection and sync models
+async function initializeDatabase() {
+  try {
+    console.log("==========   Initializing Database   ==========");
+    await authenticateWithRetry();
+    await sequelize.sync();
+    console.log("==========   Database Initialized   ==========");
+  } catch (error) {
+    console.error("Failed to initialize database:", error);
+    process.exit(1);
+  }
+}
 
 app.use(cors());
 
@@ -76,8 +90,11 @@ app.use(
   },
 );
 
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+// Start server after database initialization
+initializeDatabase().then(() => {
+  app.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
+  });
 });
 
 async function scrapeAndCompare() {

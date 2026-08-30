@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { getAllProducts } from "./scrapers/productScraper";
 import { getAllPromotions } from "./scrapers/promotionScaper";
-import { sequelize } from "./database";
+import { sequelize, authenticateWithRetry } from "./database";
 import { Product } from "./models/Product";
 import { Price } from "./models/Price";
 import { Promotion } from "./models/Promotion";
@@ -18,7 +18,7 @@ import { enrichProductsWithNutrition } from "./scrapers/nutritionScraper";
  */
 async function connectToDatabase() {
   console.log("==========   Connecting to DB   ==========");
-  await sequelize.authenticate();
+  await authenticateWithRetry();
   await sequelize.sync();
   console.log("==========     DB Connected     ==========");
 }

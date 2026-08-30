@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { Op } from "sequelize";
-import { sequelize } from "../database";
+import { sequelize, authenticateWithRetry } from "../database";
 import { Product } from "../models/Product";
 import { Nutrition } from "../models/Nutrition";
 import { enrichProductsWithNutrition } from "../scrapers/nutritionScraper";
@@ -13,11 +13,11 @@ import { enrichProductsWithNutrition } from "../scrapers/nutritionScraper";
 async function seedNutrition() {
   console.log("==========   Seeding nutrition data   ==========");
   try {
-    await sequelize.authenticate();
+    await authenticateWithRetry();
 
-    const enrichedIds = (await Nutrition.findAll({ attributes: ["productId"] })).map(
-      (n) => n.productId
-    );
+    const enrichedIds = (
+      await Nutrition.findAll({ attributes: ["productId"] })
+    ).map((n) => n.productId);
 
     const productsToEnrich = await Product.findAll({
       where: {
@@ -31,12 +31,14 @@ async function seedNutrition() {
       return;
     }
 
-    console.log(`Found ${productsToEnrich.length} products without nutrition data.`);
+    console.log(
+      `Found ${productsToEnrich.length} products without nutrition data.`,
+    );
 
     await enrichProductsWithNutrition(productsToEnrich);
 
     console.log(
-      `==========   Seeded nutrition for up to ${productsToEnrich.length} products   ==========`
+      `==========   Seeded nutrition for up to ${productsToEnrich.length} products   ==========`,
     );
   } catch (error) {
     console.error(`Error seeding nutrition: ${(error as Error).message}`);

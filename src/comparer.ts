@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { sequelize } from "./database";
+import { sequelize, authenticateWithRetry } from "./database";
 import { Op } from "sequelize";
 import { getPriceChange } from "./comparers/comparer";
 import { Price } from "./models/Price";
@@ -12,7 +12,7 @@ export async function comparer() {
   console.log("==========   Starting Comparer  ==========");
   try {
     console.log("==========   Connecting to DB   ==========");
-    await sequelize.authenticate();
+    await authenticateWithRetry();
     await sequelize.sync();
     console.log("==========     DB Connected     ==========");
     console.log("==========   Retrieving Data    ==========");
@@ -46,7 +46,7 @@ export async function comparer() {
     const { updatedPriceChanges, newPriceChanges } = await getPriceChange(
       pricesYesterday,
       pricesToday,
-      priceChanges
+      priceChanges,
     );
 
     console.log("==========     Saving Data      ==========");
@@ -69,7 +69,7 @@ export async function comparer() {
     });
 
     console.log(
-      `=======   Processed Changes: ${allChanges.length.toLocaleString()}   =======`
+      `=======   Processed Changes: ${allChanges.length.toLocaleString()}   =======`,
     );
 
     console.log("==========     Done Saving      ==========");
