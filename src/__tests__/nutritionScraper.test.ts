@@ -10,7 +10,12 @@ jest.mock("cli-progress", () => ({
 
 // Prevent Sequelize from being instantiated at import time
 jest.mock("../database", () => ({
-  sequelize: { define: jest.fn(), authenticate: jest.fn(), sync: jest.fn() },
+  sequelize: {
+    define: jest.fn(),
+    authenticate: jest.fn(),
+    sync: jest.fn(),
+    transaction: jest.fn(),
+  },
 }));
 
 // Provide lightweight Sequelize model stubs so model files can be imported
@@ -26,7 +31,16 @@ jest.mock("sequelize", () => {
     static bulkCreate = jest.fn();
     static getAttributes = jest.fn().mockReturnValue({});
   };
-  return { ...actual, Model: MockModel, DataTypes: actual.DataTypes };
+  return {
+    ...actual,
+    Model: MockModel,
+    DataTypes: actual.DataTypes,
+    Transaction: {
+      ISOLATION_LEVELS: {
+        READ_COMMITTED: "READ COMMITTED",
+      },
+    },
+  };
 });
 
 jest.mock("../models/Nutrition", () => ({
@@ -211,6 +225,7 @@ describe("enrichProductsWithNutrition", () => {
         { productId: "p1", gtin: ["1111111111111"] } as any,
         { productId: "p2", gtin: ["2222222222222"] } as any,
       ],
+      undefined,
       client as any,
     );
 
@@ -227,6 +242,7 @@ describe("enrichProductsWithNutrition", () => {
 
     await enrichProductsWithNutrition(
       [{ productId: "p1", gtin: ["1111111111111"] } as any],
+      undefined,
       client as any,
     );
 

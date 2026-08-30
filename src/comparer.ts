@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { sequelize, authenticateWithRetry } from "./database";
-import { Op } from "sequelize";
+import { Op, Transaction } from "sequelize";
 import { getPriceChange } from "./comparers/comparer";
 import { Price } from "./models/Price";
 import { PriceChange } from "./models/PriceChange";
@@ -53,20 +53,25 @@ export async function comparer() {
 
     const allChanges = [...newPriceChanges, ...updatedPriceChanges];
 
-    await sequelize.transaction(async (t) => {
-      if (allChanges.length > 0) {
-        await PriceChange.bulkCreate(allChanges, {
-          updateOnDuplicate: [
-            "priceChange",
-            "priceChangePercentage",
-            "involvesPromotion",
-            "oldPrice",
-            "newprice",
-          ],
-          transaction: t,
-        });
-      }
-    });
+    await sequelize.transaction(
+      {
+        isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED,
+      },
+      async (t) => {
+        if (allChanges.length > 0) {
+          await PriceChange.bulkCreate(allChanges, {
+            updateOnDuplicate: [
+              "priceChange",
+              "priceChangePercentage",
+              "involvesPromotion",
+              "oldPrice",
+              "newprice",
+            ],
+            transaction: t,
+          });
+        }
+      },
+    );
 
     console.log(
       `=======   Processed Changes: ${allChanges.length.toLocaleString()}   =======`,

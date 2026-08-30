@@ -288,7 +288,10 @@ async function savePromotions(
  * Enriches scraped products with nutrition data from Open Food Facts.
  * Products that already have a Nutrition row are skipped.
  */
-async function enrichMissingProducts(apiProducts: any[]) {
+async function enrichMissingProducts(
+  apiProducts: any[],
+  transaction?: Transaction,
+) {
   console.log(
     "==========     Enriching products with nutrition     ==========",
   );
@@ -297,6 +300,7 @@ async function enrichMissingProducts(apiProducts: any[]) {
   const existingNutrition = await Nutrition.findAll({
     attributes: ["productId"],
     where: { productId: { [Op.in]: productIds } },
+    transaction,
   });
   const enrichedIds = new Set(existingNutrition.map((n) => n.productId));
 
@@ -309,7 +313,7 @@ async function enrichMissingProducts(apiProducts: any[]) {
     return;
   }
 
-  await enrichProductsWithNutrition(productsToEnrich);
+  await enrichProductsWithNutrition(productsToEnrich, transaction);
 }
 
 /**
@@ -323,12 +327,17 @@ export async function scraper() {
 
     await connectToDatabase();
 
-    await sequelize.transaction(async (t) => {
-      await handleStaleData(apiProducts, apiPromotions, t);
-      await saveProducts(apiProducts, t);
-      await savePromotions(apiPromotions, apiProducts, t);
-      await enrichMissingProducts(apiProducts);
-    });
+    await sequelize.transaction(
+      {
+        isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED,
+      },
+      async (t) => {
+        await handleStaleData(apiProducts, apiPromotions, t);
+        await saveProducts(apiProducts, t);
+        await savePromotions(apiPromotions, apiProducts, t);
+        await enrichMissingProducts(apiProducts, t);
+      },
+    );
 
     console.log("==========     Done Saving      ==========");
   } catch (error) {

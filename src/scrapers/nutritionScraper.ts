@@ -1,6 +1,7 @@
 import { Product } from "../models/Product";
 import { Nutrition } from "../models/Nutrition";
 import { SingleBar, Presets } from "cli-progress";
+import { Transaction } from "sequelize";
 
 const OFF_FIELDS = [
   "product_name",
@@ -88,6 +89,7 @@ export async function fetchNutritionForProduct(
  */
 export async function enrichProductsWithNutrition(
   products: Pick<Product, "productId" | "gtin">[],
+  transaction?: Transaction,
   client: OpenFoodFactsClient = createOpenFoodFactsClient(),
 ): Promise<void> {
   if (products.length === 0) return;
@@ -116,6 +118,7 @@ export async function enrichProductsWithNutrition(
       updateOnDuplicate: Object.keys(Nutrition.getAttributes()).filter(
         (key) => key !== "productId",
       ),
+      transaction,
     });
   }
 
