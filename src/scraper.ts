@@ -68,7 +68,7 @@ async function handleStaleData(
   const apiProductIds = new Set(apiProducts.map((p) => p.productId));
 
   const productsToRemove = [...dbProductIds].filter(
-    (id) => !apiProductIds.has(id),
+    (id: string) => !apiProductIds.has(id),
   );
 
   if (productsToRemove.length > 0) {
@@ -94,7 +94,7 @@ async function handleStaleData(
   const apiPromotionIds = new Set(apiPromotions.map((p) => p.promotionId));
 
   const promotionsToRemove = [...dbPromotionIds].filter(
-    (id) => !apiPromotionIds.has(id),
+    (id: string) => !apiPromotionIds.has(id),
   );
 
   if (promotionsToRemove.length > 0) {
@@ -175,7 +175,7 @@ async function handleStaleData(
   const XDaysAgo = new Date();
   XDaysAgo.setDate(
     XDaysAgo.getDate() -
-      (Number.parseInt(process.env.AMOUNT_OF_DAYS_KEPT) || 90),
+      (Number.parseInt(process.env.AMOUNT_OF_DAYS_KEPT || "90") || 90),
   );
 
   const oldPricesCount = await Price.destroy({
@@ -239,9 +239,9 @@ async function savePromotions(
       const linkedTechnicalArticleNumbers =
         promotion.linkedTechnicalArticleNumber
           .split(",")
-          .map((id) => id.trim());
+          .map((id: string) => id.trim());
       const productIds = linkedTechnicalArticleNumbers
-        .map((tan) => {
+        .map((tan: string) => {
           const product = apiProducts.find(
             (p) => p.technicalArticleNumber === tan,
           );
@@ -341,7 +341,7 @@ export async function scraper() {
 
     console.log("==========     Done Saving      ==========");
   } catch (error) {
-    console.error(`Error: ${error.message}`);
-    console.error(error.errors);
+    console.error(`Error: ${(error as Error).message}`);
+    console.error((error as any).errors);
   }
 }

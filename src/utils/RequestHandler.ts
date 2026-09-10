@@ -81,7 +81,7 @@ export class RequestHandler {
     url: string,
     headers: any = {},
     params: any = {},
-    withoutApiKey = false
+    withoutApiKey = false,
   ): Promise<any> {
     if (!withoutApiKey) {
       headers["X-Cg-Apikey"] = await this.getApiKey();
@@ -119,15 +119,45 @@ export class RequestHandler {
         return response.data;
       } catch (error) {
         attempt++;
+        const axiosError = error as AxiosError;
+
+        // Log detailed debug information for errors
+        console.error(`=== Request Error Debug Info ===`);
+        console.error(`URL: ${url}`);
+        console.error(`HTTP Method: GET`);
+        console.error(`Attempt: ${attempt}/${this.maxTries}`);
+        console.error(`Proxy Enabled: ${process.env.ENABLE_PROXY}`);
+        console.error(`Error Status: ${axiosError.response?.status}`);
+        console.error(`Error Code: ${axiosError.code}`);
+        console.error(`Error Message: ${axiosError.message}`);
+
+        // Log sanitized headers (hide sensitive data)
+        const sanitizedHeaders = { ...headers };
+        if (sanitizedHeaders["X-Cg-Apikey"]) {
+          sanitizedHeaders["X-Cg-Apikey"] = "***HIDDEN***";
+        }
+        console.error(`Request Headers: ${JSON.stringify(sanitizedHeaders)}`);
+
+        // Log request parameters
+        console.error(`Request Params: ${JSON.stringify(params)}`);
+
+        // Log response data if available
+        if (axiosError.response?.data) {
+          console.error(
+            `Response Data: ${JSON.stringify(axiosError.response.data)}`,
+          );
+        }
+
+        console.error(`=== End Debug Info ===`);
+
         if (attempt >= this.maxTries) {
           console.error(
             `Request failed after ${this.maxTries} attempts.`,
-            error.message
+            error.message,
           );
           throw error;
         }
 
-        const axiosError = error as AxiosError;
         const isRetryable =
           (axiosError.response &&
             retryableStatusCodes.includes(axiosError.response.status)) ||
@@ -138,7 +168,7 @@ export class RequestHandler {
           console.warn(
             `Attempt ${attempt}: Request failed with ${
               axiosError.response?.status || axiosError.code
-            }. Retrying in ${Math.round(delayTime / 1000)}s...`
+            }. Retrying in ${Math.round(delayTime / 1000)}s...`,
           );
           await delay(delayTime);
         } else {
