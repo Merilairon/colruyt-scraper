@@ -321,64 +321,54 @@ async function enrichMissingProducts(
  */
 export async function scraper() {
   console.log("==========   Starting Scraper   ==========");
-  const maxTransactionRetries = 3;
-  let lastError: Error | null = null;
+  try {
+    console.log("Fetching products and promotions from API...");
+    const apiProducts = await getAllProducts();
+    const apiPromotions = await getAllPromotions();
 
-  for (let attempt = 1; attempt <= maxTransactionRetries; attempt++) {
-    try {
-      console.log(`Transaction attempt ${attempt}/${maxTransactionRetries}`);
-      console.log("Fetching products and promotions from API...");
-      const apiProducts = await getAllProducts();
-      const apiPromotions = await getAllPromotions();
+    console.log(
+      `API returned ${apiProducts.length} products and ${apiPromotions.length} promotions`,
+    );
 
-      console.log(
-        `API returned ${apiProducts.length} products and ${apiPromotions.length} promotions`,
-      );
+    await connectToDatabase();
 
-      await connectToDatabase();
+    // Break into smaller transactions to avoid timeouts
+    console.log("Handling stale data...");
+    await sequelize.transaction(
+      { isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED },
+      async (t) => {
+        await handleStaleData(apiProducts, apiPromotions, t);
+      },
+    );
 
-      console.log("Starting database transaction with timeout...");
-      await sequelize.transaction(
-        {
-          isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED,
-          autocommit: false,
-        },
-        async (t) => {
-          console.log("Handling stale data...");
-          await handleStaleData(apiProducts, apiPromotions, t);
+    console.log("Saving products...");
+    await sequelize.transaction(
+      { isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED },
+      async (t) => {
+        await saveProducts(apiProducts, t);
+      },
+    );
 
-          console.log("Saving products...");
-          await saveProducts(apiProducts, t);
+    console.log("Saving promotions...");
+    await sequelize.transaction(
+      { isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED },
+      async (t) => {
+        await savePromotions(apiPromotions, apiProducts, t);
+      },
+    );
 
-          console.log("Saving promotions...");
-          await savePromotions(apiPromotions, apiProducts, t);
+    console.log("Enriching products with nutrition...");
+    await sequelize.transaction(
+      { isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED },
+      async (t) => {
+        await enrichMissingProducts(apiProducts, t);
+      },
+    );
 
-          console.log("Enriching products with nutrition...");
-          await enrichMissingProducts(apiProducts, t);
-        },
-      );
-
-      console.log("==========     Done Saving      ==========");
-      return; // Success, exit retry loop
-    } catch (error) {
-      lastError = error as Error;
-      console.error(
-        `Transaction attempt ${attempt} failed:`,
-        (error as Error).message,
-      );
-
-      if (attempt < maxTransactionRetries) {
-        const delay = Math.pow(2, attempt) * 5000; // Exponential backoff
-        console.log(`Retrying transaction in ${delay / 1000} seconds...`);
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      } else {
-        console.error("All transaction attempts failed");
-      }
-    }
+    console.log("==========     Done Saving      ==========");
+  } catch (error) {
+    console.error(`Error: ${(error as Error).message}`);
+    console.error((error as any).errors);
+    console.error("Full error:", error);
   }
-
-  // Final error logging after all retries exhausted
-  console.error(`Error: ${lastError?.message}`);
-  console.error((lastError as any)?.errors);
-  console.error("Full error:", lastError);
 }
