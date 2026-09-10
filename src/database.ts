@@ -20,10 +20,11 @@ export const sequelize = new Sequelize(process.env.PG_HOST, {
       }
     : false,
   pool: {
-    max: 10,
-    min: 0,
-    acquire: 30000,
-    idle: 10000,
+    max: 5,
+    min: 2,
+    acquire: 60000,
+    idle: 30000,
+    evict: 60000,
   },
   retry: {
     max: MAX_RETRIES,
@@ -35,6 +36,10 @@ export const sequelize = new Sequelize(process.env.PG_HOST, {
       /SequelizeInvalidConnectionError/,
       /SequelizeConnectionTimedOutError/,
     ],
+  },
+  dialectOptions: {
+    statement_timeout: 300000, // 5 minutes in milliseconds
+    idle_in_transaction_session_timeout: 180000, // 3 minutes
   },
 });
 
