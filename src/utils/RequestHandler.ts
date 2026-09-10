@@ -92,6 +92,23 @@ export class RequestHandler {
         ? process.env.HOST_URL
         : process.env.API_HOST_URL; // Set the host URL in the request header.
 
+    // Add anti-bot detection headers
+    headers["User-Agent"] =
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+    headers["Accept"] = "application/json, text/plain, */*";
+    headers["Accept-Language"] = "nl-BE,nl;q=0.9,en-US;q=0.8,en;q=0.7";
+    headers["Accept-Encoding"] = "gzip, deflate, br";
+    headers["Connection"] = "keep-alive";
+    headers["Referer"] = process.env.HOST_URL
+      ? `https://${process.env.HOST_URL}`
+      : "https://www.colruyt.be";
+    headers["Origin"] = process.env.HOST_URL
+      ? `https://${process.env.HOST_URL}`
+      : "https://www.colruyt.be";
+    headers["Sec-Fetch-Dest"] = "empty";
+    headers["Sec-Fetch-Mode"] = "cors";
+    headers["Sec-Fetch-Site"] = "same-site";
+
     let options: any = {
       timeout: this.tunnelTimeout, // Set the request timeout.
       headers, // Include the specified headers.
@@ -99,7 +116,7 @@ export class RequestHandler {
     };
 
     let attempt = 0;
-    const retryableStatusCodes = [408, 500, 502, 503, 504];
+    const retryableStatusCodes = [405, 408, 429, 500, 502, 503, 504];
 
     while (true) {
       try {
