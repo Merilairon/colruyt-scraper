@@ -313,7 +313,25 @@ async function enrichMissingProducts(
     return;
   }
 
-  await enrichProductsWithNutrition(productsToEnrich, transaction);
+  console.log(`Enriching ${productsToEnrich.length} products in batches...`);
+
+  // Process in batches of 100 to avoid long transactions
+  const batchSize = 100;
+  for (let i = 0; i < productsToEnrich.length; i += batchSize) {
+    const batch = productsToEnrich.slice(i, i + batchSize);
+    console.log(
+      `Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(productsToEnrich.length / batchSize)} (${batch.length} products)`,
+    );
+
+    await sequelize.transaction(
+      { isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED },
+      async (t) => {
+        await enrichProductsWithNutrition(batch, t);
+      },
+    );
+  }
+
+  console.log("Nutrition enrichment complete.");
 }
 
 /**

@@ -38,8 +38,8 @@ export const sequelize = new Sequelize(process.env.PG_HOST, {
     ],
   },
   dialectOptions: {
-    statement_timeout: 300000, // 5 minutes in milliseconds
-    idle_in_transaction_session_timeout: 180000, // 3 minutes
+    statement_timeout: 600000, // 10 minutes in milliseconds
+    idle_in_transaction_session_timeout: 600000, // 10 minutes
   },
 });
 
