@@ -322,19 +322,32 @@ async function enrichMissingProducts(
 export async function scraper() {
   console.log("==========   Starting Scraper   ==========");
   try {
+    console.log("Fetching products and promotions from API...");
     const apiProducts = await getAllProducts();
     const apiPromotions = await getAllPromotions();
 
+    console.log(
+      `API returned ${apiProducts.length} products and ${apiPromotions.length} promotions`,
+    );
+
     await connectToDatabase();
 
+    console.log("Starting database transaction...");
     await sequelize.transaction(
       {
         isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED,
       },
       async (t) => {
+        console.log("Handling stale data...");
         await handleStaleData(apiProducts, apiPromotions, t);
+
+        console.log("Saving products...");
         await saveProducts(apiProducts, t);
+
+        console.log("Saving promotions...");
         await savePromotions(apiPromotions, apiProducts, t);
+
+        console.log("Enriching products with nutrition...");
         await enrichMissingProducts(apiProducts, t);
       },
     );
@@ -343,5 +356,6 @@ export async function scraper() {
   } catch (error) {
     console.error(`Error: ${(error as Error).message}`);
     console.error((error as any).errors);
+    console.error("Full error:", error);
   }
 }
